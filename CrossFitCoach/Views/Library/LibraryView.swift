@@ -19,6 +19,17 @@ struct LibraryView: View {
                     .font(DF.display(28))
                     .foregroundColor(DT.fg)
 
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ChipButton(label: "Vše", isActive: categoryFilter == nil) { categoryFilter = nil }
+                        ForEach(MovementCategory.allCases, id: \.self) { cat in
+                            ChipButton(label: cat.label, isActive: categoryFilter == cat) {
+                                categoryFilter = categoryFilter == cat ? nil : cat
+                            }
+                        }
+                    }
+                }
+
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(DT.fgFaint)
@@ -39,17 +50,6 @@ struct LibraryView: View {
                 .background(DT.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(DT.line, lineWidth: 1))
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ChipButton(label: "Vše", isActive: categoryFilter == nil) { categoryFilter = nil }
-                        ForEach(MovementCategory.allCases, id: \.self) { cat in
-                            ChipButton(label: cat.label, isActive: categoryFilter == cat) {
-                                categoryFilter = categoryFilter == cat ? nil : cat
-                            }
-                        }
-                    }
-                }
 
                 if filtered.isEmpty {
                     EmptyStateView(icon: "🔍", text: "Žádné cviky neodpovídají filtru.")
