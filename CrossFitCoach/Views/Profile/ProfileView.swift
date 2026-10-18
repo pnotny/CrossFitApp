@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var stravaWorkerUrl = ""
     @State private var showLevelUpConfirm = false
     @State private var levelUpDismissed = false
+    @State private var showAccountSheet = false
 
     private static let dayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
     private static let preferredFormatOptions: [WorkoutFormat] = [.emom, .amrap, .forTime, .chipper, .tabata, .intervals, .steady]
@@ -54,6 +55,7 @@ struct ProfileView: View {
         }
         .background(DT.bg)
         .onAppear { loadDraft() }
+        .sheet(isPresented: $showAccountSheet) { AccountSheetView() }
     }
 
     private func loadDraft() {
@@ -80,9 +82,6 @@ struct ProfileView: View {
     private var basicsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("Základní údaje")
-
-            TextField("Jméno", text: $draft.name)
-                .textFieldStyle(.roundedBorder)
 
             SegmentedPicker(options: Gender.allCases.map { ($0, $0.label) }, selection: $draft.gender)
 
@@ -336,15 +335,19 @@ struct ProfileView: View {
     // MARK: Účet
 
     private var accountCard: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Účet").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
-                Text(store.authUser?.username ?? "—").font(.system(size: 12)).foregroundColor(DT.fgMuted)
+        Button { showAccountSheet = true } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Účet").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                    Text(store.authUser?.username ?? "—").font(.system(size: 12)).foregroundColor(DT.fgMuted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(DT.fgFaint)
             }
-            Spacer()
-            Button("Odhlásit se", role: .destructive) { store.logout() }
-                .foregroundColor(DT.danger)
         }
+        .buttonStyle(.plain)
         .cardStyle()
     }
 
