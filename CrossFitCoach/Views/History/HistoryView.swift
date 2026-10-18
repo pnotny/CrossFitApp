@@ -10,6 +10,12 @@ struct HistoryView: View {
     @EnvironmentObject var store: AppStore
     @State private var selectedWorkout: Workout?
     @State private var showAddPr = false
+    @State private var showCalendar = false
+
+    /// Uložené, ale (ještě) ne odjeté tréninky — plán, ne záznam.
+    private var savedWorkouts: [Workout] { store.history.filter { !$0.isCompleted } }
+    /// Skutečně odjeté/splněné tréninky — odškrtnuté na kartě Dnes.
+    private var completedWorkouts: [Workout] { store.history.filter { $0.isCompleted } }
 
     var body: some View {
         ScrollView {
@@ -18,35 +24,71 @@ struct HistoryView: View {
                     .font(DF.display(28))
                     .foregroundColor(DT.fg)
 
+                calendarEntryRow
                 prSection
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Historie tréninků")
-                        .font(.system(size: 12, weight: .heavy))
-                        .trackedUppercase(0.3)
-                        .foregroundColor(DT.fgMuted)
-
-                    if store.history.isEmpty {
-                        EmptyStateView(icon: "📅", text: "Zatím žádné uložené tréninky.")
-                    } else {
-                        VStack(spacing: 8) {
-                            ForEach(store.history, id: \.date) { workout in
-                                SwipeToDeleteRow(onDelete: { store.deleteWorkout(for: workout.date) }) {
-                                    Button { selectedWorkout = workout } label: {
-                                        historyRow(workout)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                }
+                workoutSection(
+                    title: "Uložené tréninky",
+                    workouts: savedWorkouts,
+                    emptyIcon: "📝",
+                    emptyText: "Zatím žádné naplánované/uložené tréninky."
+                )
+                workoutSection(
+                    title: "Odjeté tréninky",
+                    workouts: completedWorkouts,
+                    emptyIcon: "✅",
+                    emptyText: "Zatím žádný odjetý trénink — odškrtni ho na kartě Dnes."
+                )
             }
             .padding(16)
         }
         .background(DT.bg)
         .sheet(item: $selectedWorkout) { HistoryWorkoutDetailView(workout: $0) }
         .sheet(isPresented: $showAddPr) { AddPrSheetView() }
+        .sheet(isPresented: $showCalendar) { CalendarSheetView() }
+    }
+
+    private var calendarEntryRow: some View {
+        Button { showCalendar = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(DT.accentText)
+                Text("Kalendář tréninků")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(DT.fg)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(DT.fgFaint)
+            }
+        }
+        .buttonStyle(.plain)
+        .cardStyle()
+    }
+
+    private func workoutSection(title: String, workouts: [Workout], emptyIcon: String, emptyText: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 12, weight: .heavy))
+                .trackedUppercase(0.3)
+                .foregroundColor(DT.fgMuted)
+
+            if workouts.isEmpty {
+                EmptyStateView(icon: emptyIcon, text: emptyText)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(workouts, id: \.date) { workout in
+                        SwipeToDeleteRow(onDelete: { store.deleteWorkout(for: workout.date) }) {
+                            Button { selectedWorkout = workout } label: {
+                                historyRow(workout)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var prSection: some View {

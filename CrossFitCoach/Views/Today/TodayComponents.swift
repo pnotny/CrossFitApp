@@ -56,6 +56,7 @@ struct WorkoutHeroCard: View {
                 if store.currentWorkoutSaved {
                     BadgeView(text: "Uloženo", outline: true)
                 }
+                completedToggle
             }
 
             HStack(spacing: 22) {
@@ -106,6 +107,25 @@ struct WorkoutHeroCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         )
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(DT.line, lineWidth: 1))
+    }
+
+    /// Odškrtnutí "trénink jsem odjel" — nezávislé na uložení do historie.
+    private var completedToggle: some View {
+        Button {
+            store.toggleWorkoutCompleted()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: workout.isCompleted ? "checkmark.circle.fill" : "circle")
+                Text(workout.isCompleted ? "Splněno" : "Označit splněno")
+            }
+            .font(.system(size: 11, weight: .heavy))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(workout.isCompleted ? DT.accent : DT.surface)
+            .foregroundColor(workout.isCompleted ? DT.accentInk : DT.fgMuted)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func statColumn(value: String, unit: String) -> some View {

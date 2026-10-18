@@ -194,6 +194,18 @@ final class AppStore: ObservableObject {
         syncUp()
     }
 
+    /// Odškrtnutí "splnil jsem tenhle trénink" na kartě Dnes — nezávislé na tom,
+    /// jestli je trénink jen uložený/naplánovaný (viz `saveCurrentWorkout`).
+    func toggleWorkoutCompleted() {
+        guard var w = currentWorkout else { return }
+        w.completed = !(w.completed ?? false)
+        history = storage.saveWorkoutToHistory(w)
+        currentWorkout = w
+        currentWorkoutSaved = true
+        toast(w.isCompleted ? "Trénink označen jako splněný 💪" : "Splnění zrušeno")
+        syncUp()
+    }
+
     func saveRpe(_ value: Int) {
         guard var w = currentWorkout else { return }
         w.rpe = value

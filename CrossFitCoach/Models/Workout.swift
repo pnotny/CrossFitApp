@@ -42,9 +42,14 @@ struct Workout: Codable, Hashable, Identifiable {
     var edited: Bool = false
     var rpe: Int?
     var stravaActivityId: Int?
+    /// Optional, ne Bool s defaultem — starší uložené tréninky tenhle klíč v JSON
+    /// nemají a synthetizovaný Decodable chybějící klíč u ne-optional typu
+    /// odmítne (celá historie by se tím tiše vynulovala).
+    var completed: Bool?
 
     var id: String { date }
     var totalMinutes: Int { blocks.reduce(0) { $0 + $1.durationMin } }
+    var isCompleted: Bool { completed ?? false }
 }
 
 struct PrEntry: Codable, Hashable {
