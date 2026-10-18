@@ -34,6 +34,59 @@ extension View {
     func cardStyle() -> some View { modifier(CardBackground()) }
 }
 
+// MARK: - Řádek smazatelný potažením doleva
+
+/// Obalí libovolný obsah (typicky kartu) tak, aby šel potažením doleva odhalit
+/// červené tlačítko smazání — vlastní implementace, appka nepoužívá List,
+/// takže nativní `.swipeActions` není k dispozici.
+struct SwipeToDeleteRow<Content: View>: View {
+    let onDelete: () -> Void
+    @ViewBuilder var content: () -> Content
+
+    @State private var offsetX: CGFloat = 0
+    @State private var isOpen = false
+    private let actionWidth: CGFloat = 76
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            Button(role: .destructive, action: onDelete) {
+                VStack(spacing: 4) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("Smazat")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(width: actionWidth)
+                .frame(maxHeight: .infinity)
+            }
+            .buttonStyle(.plain)
+            .background(DT.danger)
+
+            content()
+                .cardStyle()
+                .offset(x: offsetX)
+                .gesture(
+                    DragGesture(minimumDistance: 16)
+                        .onChanged { value in
+                            let translation = value.translation.width
+                            let base: CGFloat = isOpen ? -actionWidth : 0
+                            guard translation < 0 || isOpen else { return }
+                            offsetX = min(0, max(base + translation, -actionWidth))
+                        }
+                        .onEnded { value in
+                            let shouldOpen = offsetX < -actionWidth / 2
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                offsetX = shouldOpen ? -actionWidth : 0
+                            }
+                            isOpen = shouldOpen
+                        }
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
 // MARK: - Badge (pilulka)
 //
 // Výchozí (plná) varianta = akcentní výplň + tmavý text, stejně v obou režimech.

@@ -183,6 +183,17 @@ final class AppStore: ObservableObject {
         syncUp()
     }
 
+    /// Smaže libovolný trénink z historie podle data — používá se třeba u
+    /// potažení řádku v Historii doleva (bez ohledu na aktuálně zobrazený den).
+    func deleteWorkout(for date: String) {
+        history = storage.deleteWorkout(for: date)
+        if date == viewDate {
+            loadOrGenerateWorkout()
+        }
+        toast("Trénink smazán")
+        syncUp()
+    }
+
     func saveRpe(_ value: Int) {
         guard var w = currentWorkout else { return }
         w.rpe = value

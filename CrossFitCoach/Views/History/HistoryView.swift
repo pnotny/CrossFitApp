@@ -31,15 +31,16 @@ struct HistoryView: View {
                     } else {
                         VStack(spacing: 8) {
                             ForEach(store.history, id: \.date) { workout in
-                                Button { selectedWorkout = workout } label: {
-                                    historyRow(workout)
+                                SwipeToDeleteRow(onDelete: { store.deleteWorkout(for: workout.date) }) {
+                                    Button { selectedWorkout = workout } label: {
+                                        historyRow(workout)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
                 }
-                .cardStyle()
             }
             .padding(16)
         }
