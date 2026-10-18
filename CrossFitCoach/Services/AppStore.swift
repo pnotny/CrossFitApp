@@ -19,8 +19,16 @@ final class AppStore: ObservableObject {
     @Published var stravaExportInFlight: Bool = false
     @Published var prLog: [PrEntry]
 
+    // MARK: Přihlášení
+    @Published var authUser: AuthUser?
+    @Published var authServerUrl: String
+    @Published var authInFlight: Bool = false
+    @Published var authError: String?
+    @Published var isRestoringSession: Bool = true
+
     private let storage = Storage.shared
     private var toastTask: Task<Void, Never>?
+    private static let authTokenKey = "authToken"
 
     init() {
         profile = storage.getProfile()
@@ -29,7 +37,69 @@ final class AppStore: ObservableObject {
         theme = storage.getTheme()
         stravaAuth = storage.getStravaAuth()
         prLog = storage.getPrLog()
+        let savedServerUrl = storage.getAuthServerUrl()
+        authServerUrl = savedServerUrl.isEmpty ? (storage.getStravaAuth()?.workerUrl ?? "") : savedServerUrl
         loadOrGenerateWorkout()
+    }
+
+    // MARK: Přihlášení
+
+    /// Zavolat jednou při startu appky — ověří uložený session token na serveru,
+    /// než appku zpřístupní (mandatorní login gate).
+    func restoreSession() async {
+        defer { isRestoringSession = false }
+        guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
+        do {
+            authUser = try await AuthService.shared.me(serverUrl: authServerUrl, token: token)
+        } catch {
+            KeychainStore.delete(forKey: Self.authTokenKey)
+        }
+    }
+
+    func login(serverUrl: String, username: String, password: String) async {
+        authError = nil
+        authInFlight = true
+        defer { authInFlight = false }
+        do {
+            let (token, user) = try await AuthService.shared.login(serverUrl: serverUrl, username: username, password: password)
+            persistSession(serverUrl: serverUrl, token: token, user: user)
+        } catch {
+            authError = error.localizedDescription
+        }
+    }
+
+    func register(serverUrl: String, username: String, password: String) async {
+        authError = nil
+        authInFlight = true
+        defer { authInFlight = false }
+        do {
+            let (token, user) = try await AuthService.shared.register(serverUrl: serverUrl, username: username, password: password)
+            persistSession(serverUrl: serverUrl, token: token, user: user)
+        } catch {
+            authError = error.localizedDescription
+        }
+    }
+
+    func logout() {
+        let serverUrl = authServerUrl
+        if let token = KeychainStore.get(forKey: Self.authTokenKey) {
+            Task { await AuthService.shared.logout(serverUrl: serverUrl, token: token) }
+        }
+        KeychainStore.delete(forKey: Self.authTokenKey)
+        authUser = nil
+    }
+
+    private func persistSession(serverUrl: String, token: String, user: AuthUser) {
+        authServerUrl = serverUrl
+        storage.setAuthServerUrl(serverUrl)
+        KeychainStore.set(token, forKey: Self.authTokenKey)
+        authUser = user
+        // Stejný Worker obsluhuje přihlašování i Strava export — pokud appka ještě
+        // nemá vyplněné Worker URL pro Stravu, nabídneme stejnou adresu zadarmo.
+        if stravaAuth == nil {
+            storage.saveStravaAuth(StravaAuth(workerUrl: serverUrl, refreshToken: nil, athleteId: nil, athleteName: nil))
+            stravaAuth = storage.getStravaAuth()
+        }
     }
 
     // MARK: Trénink pro aktuálně zobrazený den

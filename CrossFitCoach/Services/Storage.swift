@@ -122,4 +122,14 @@ final class Storage {
             try? fileManager.removeItem(at: fileURL("strava"))
         }
     }
+
+    // MARK: Přihlašovací server (adresa backendu, session token je v Keychain)
+
+    func getAuthServerUrl() -> String {
+        read("auth_server_url", as: String.self) ?? ""
+    }
+
+    func setAuthServerUrl(_ url: String) {
+        write(url, "auth_server_url")
+    }
 }

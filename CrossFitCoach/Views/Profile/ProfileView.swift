@@ -31,6 +31,7 @@ struct ProfileView: View {
                 weeklyTemplateCard
                 stravaCard
                 appearanceCard
+                accountCard
 
                 HStack(spacing: 10) {
                     Button {
@@ -330,6 +331,21 @@ struct ProfileView: View {
         case .light: return "Světlý"
         case .dark: return "Tmavý"
         }
+    }
+
+    // MARK: Účet
+
+    private var accountCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Účet").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                Text(store.authUser?.username ?? "—").font(.system(size: 12)).foregroundColor(DT.fgMuted)
+            }
+            Spacer()
+            Button("Odhlásit se", role: .destructive) { store.logout() }
+                .foregroundColor(DT.danger)
+        }
+        .cardStyle()
     }
 
     // MARK: - Pomocné
