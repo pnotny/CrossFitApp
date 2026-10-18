@@ -116,6 +116,28 @@ crossfit-coach-strava-proxy.tvuj-ucet.workers.dev
 
 Od teď se na kartě uloženého tréninku objeví tlačítko **🟠 Export na Strava**.
 
+## 7. AI koučovací poznámky (volitelné)
+
+Appka umí ke každému bloku dnešního tréninku ukázat krátkou AI vygenerovanou
+poznámku místo (resp. navíc k) statické poznámky z generátoru. Používá se na
+to **Cloudflare Workers AI** — open-source model běžící přímo u Cloudflaru,
+v rámci free tier zdarma, žádný externí účet ani API klíč.
+
+Binding `[ai]` je už ve `wrangler.toml` připravený, stačí znovu nasadit:
+
+```bash
+npx wrangler deploy
+```
+
+Pokud tvůj Cloudflare účet ještě nikdy Workers AI nepoužil, při prvním
+volání se v Cloudflare dashboardu (Workers & Pages → AI) může zobrazit
+jednorázová výzva k aktivaci — žádné další nastavení není potřeba.
+
+Appka se o AI poznámky pokusí jen pro dnešní trénink. Když se to nepovede
+(chybí síť, Worker neodpoví, model vrátí nečekaný výstup), appka beze změny
+zůstane u poznámek, které si sama vygenerovala — AI je čistě přidaná vrstva
+navíc, nikdy náhrada generátoru tréninků.
+
 ## Co Worker dělá (a nedělá)
 
 - Drží `client_secret` a vyměňuje/obnovuje Strava tokeny — appka pracuje
@@ -149,3 +171,14 @@ osobní/pár-uživatelské nasazení stačí).
 > `wrangler d1 execute crossfit-coach-db --remote --file=schema.sql` — přidá
 > jen novou tabulku `user_data`, existující tabulky nijak nezmění
 > (`CREATE TABLE IF NOT EXISTS`).
+
+## AI API — koučovací poznámky
+
+- `POST /ai/workout-notes` s headerem `Authorization: Bearer <token>` a JSON
+  tělem `{ dayTypeLabel, goal, level, blocks: [{ title, formatLabel, scheme,
+  exercises: [{ name, reps }] }], recentRpe: [Int] }` → `{ notes: [String] }`
+  (jedna poznámka na blok, ve stejném pořadí a počtu)
+
+Běží na modelu `@cf/meta/llama-3.1-8b-instruct` přes Workers AI binding `AI`.
+Chyba (chybějící binding, nečekaný výstup modelu) vrátí `{ error }` a appka
+na to reaguje tiše — ukáže dál statické poznámky z generátoru.

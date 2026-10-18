@@ -17,11 +17,18 @@
  *   GET /me/data            → vrátí uložený stav (profil/historie/PR/motiv/Strava)
  *   PUT /me/data            → uloží aktuální stav (appka posílá celý stav, "last write wins")
  *
+ * 4) AI koučovací poznámky (Authorization: Bearer <token>), Cloudflare Workers AI
+ *    (zdarma v rámci free tier, open-source model, žádný externí účet navíc):
+ *   POST /ai/workout-notes  → pro dnešní trénink vrátí krátkou poznámku ke každému
+ *                             bloku; appka tím při úspěchu nahradí statické poznámky
+ *                             z generátoru, při chybě/výpadku sítě je necháme beze změny
+ *
  * Env proměnné (nastav přes `wrangler secret put` / dashboard):
  *   STRAVA_CLIENT_ID      (var)    — Client ID tvé Strava API aplikace
  *   STRAVA_CLIENT_SECRET  (secret) — Client Secret tvé Strava API aplikace
  *   ALLOWED_ORIGIN        (var)    — origin appky, např. https://pnotny.github.io
  *   DB                    (D1)     — databáze crossfit-coach-db, viz wrangler.toml + schema.sql
+ *   AI                    (Workers AI) — binding na Cloudflare Workers AI, viz wrangler.toml
  */
 
 const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
@@ -381,6 +388,59 @@ async function handlePutUserData(request, env) {
   return json({ ok: true }, env);
 }
 
+// ---------------------------------------------------------------------------
+// AI koučovací poznámky (Cloudflare Workers AI, open-source model)
+// ---------------------------------------------------------------------------
+
+const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+
+async function handleAIWorkoutNotes(request, env) {
+  const user = await getSessionUser(env, getBearerToken(request));
+  if (!user) return json({ error: 'unauthorized' }, env, 401);
+  if (!env.AI) return json({ error: 'Workers AI není na Workeru nastavené (binding AI).' }, env, 501);
+
+  const body = await request.json().catch(() => ({}));
+  const blocks = Array.isArray(body.blocks) ? body.blocks : [];
+  if (blocks.length === 0) return json({ error: 'missing blocks' }, env, 400);
+
+  const blockLines = blocks.map((b, i) => {
+    const exercises = Array.isArray(b.exercises) ? b.exercises : [];
+    const exList = exercises.map((e) => `${e.name}${e.reps ? ' ' + e.reps : ''}`).join(', ');
+    const scheme = b.scheme ? `, ${b.scheme}` : '';
+    return `${i + 1}. ${b.title} (${b.formatLabel || ''}${scheme}) — cviky: ${exList || '—'}`;
+  }).join('\n');
+
+  const rpeLine = Array.isArray(body.recentRpe) && body.recentRpe.length
+    ? `Poslední RPE (náročnost, 1–10): ${body.recentRpe.join(', ')}.`
+    : '';
+
+  const prompt = `Jsi zkušený CrossFit trenér. Cvičenec: úroveň ${body.level || 'neznámá'}, cíl ${body.goal || 'neznámý'}. ` +
+    `Dnešní typ dne: ${body.dayTypeLabel || ''}. ${rpeLine}\n\n` +
+    `Tréninkové bloky:\n${blockLines}\n\n` +
+    `Pro KAŽDÝ blok napiš jednu krátkou (max 2 věty) koučovací poznámku česky — konkrétní a praktickou, ` +
+    `k technice, tempu nebo strategii daného bloku. Odpověz POUZE jako JSON pole řetězců, přesně ve stejném ` +
+    `pořadí a počtu jako bloky výše — žádný markdown, žádné vysvětlení, jen to pole.`;
+
+  try {
+    const result = await env.AI.run(AI_MODEL, {
+      messages: [
+        { role: 'system', content: 'Odpovídáš výhradně validním JSON polem řetězců, bez jakéhokoliv dalšího textu kolem.' },
+        { role: 'user', content: prompt }
+      ]
+    });
+
+    const raw = (result && result.response) || '';
+    const match = raw.match(/\[[\s\S]*\]/);
+    const notes = match ? JSON.parse(match[0]) : null;
+    if (!Array.isArray(notes) || notes.length !== blocks.length || !notes.every((n) => typeof n === 'string')) {
+      return json({ error: 'unexpected AI output' }, env, 502);
+    }
+    return json({ notes }, env);
+  } catch (e) {
+    return json({ error: e.message || 'AI request failed' }, env, 502);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -419,13 +479,16 @@ export default {
     if (url.pathname === '/me/data' && request.method === 'PUT') {
       return handlePutUserData(request, env);
     }
+    if (url.pathname === '/ai/workout-notes' && request.method === 'POST') {
+      return handleAIWorkoutNotes(request, env);
+    }
 
     return json({
       error: 'not found',
       routes: [
         '/authorize', '/callback', '/refresh', '/create-activity',
         '/auth/register', '/auth/login', '/auth/me', '/auth/logout',
-        '/me/data'
+        '/me/data', '/ai/workout-notes'
       ]
     }, env, 404);
   }

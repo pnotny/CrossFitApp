@@ -17,3 +17,8 @@ ALLOWED_ORIGIN = "https://pnotny.github.io"
 binding = "DB"
 database_name = "crossfit-coach-db"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Cloudflare Workers AI — AI koučovací poznámky (/ai/workout-notes), zdarma v rámci
+# free tier, žádný externí účet ani ID navíc. Stačí tenhle binding, nic se nevytváří.
+[ai]
+binding = "AI"
