@@ -297,7 +297,7 @@ enum WorkoutGenerator {
         let main = leastLoadedPick(mainPool, muscleLoad)
 
         let total = profile.timeAvailable
-        let strengthMin = clampInt(Int((Double(total) * 0.4 / 5).rounded()) * 5, 12, 30)
+        let strengthMin = clampInt(Int((Double(total) * 0.4 / 5).rounded()) * 5, 12, 40)
         var blocks: [WorkoutBlock] = []
         var usedPatterns: [MovementPattern] = []
 
@@ -313,7 +313,7 @@ enum WorkoutGenerator {
             ))
         }
 
-        let metconMinutes = clampInt(total - (main != nil ? strengthMin : 0), 8, 40)
+        let metconMinutes = clampInt(total - (main != nil ? strengthMin : 0), 8, 60)
         let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
@@ -331,7 +331,7 @@ enum WorkoutGenerator {
         let skillPick = leastLoadedPick(skillCandidates, muscleLoad)
 
         let total = profile.timeAvailable
-        let skillMin = clampInt(Int((Double(total) * 0.3 / 5).rounded()) * 5, 8, 18)
+        let skillMin = clampInt(Int((Double(total) * 0.3 / 5).rounded()) * 5, 8, 25)
         var blocks: [WorkoutBlock] = []
         var usedPatterns: [MovementPattern] = []
 
@@ -347,7 +347,7 @@ enum WorkoutGenerator {
             ))
         }
 
-        let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0), 8, 40)
+        let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0), 8, 65)
         let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman])
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
@@ -400,7 +400,7 @@ enum WorkoutGenerator {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
-        let timeCap = clampInt(profile.timeAvailable, 15, 60)
+        let timeCap = clampInt(profile.timeAvailable, 15, 90)
         let count = clampInt(Int((Double(timeCap) / 6).rounded()), 4, 8)
         let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad)
         let baseReps = [50, 40, 35, 30, 25, 20, 15, 10]
