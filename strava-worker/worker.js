@@ -13,6 +13,10 @@
  *   GET  /auth/me          → vrátí info o přihlášeném uživateli (Authorization: Bearer <token>)
  *   POST /auth/logout      → zruší session token
  *
+ * 3) Synchronizace stavu appky mezi zařízeními (Authorization: Bearer <token>):
+ *   GET /me/data            → vrátí uložený stav (profil/historie/PR/motiv/Strava)
+ *   PUT /me/data            → uloží aktuální stav (appka posílá celý stav, "last write wins")
+ *
  * Env proměnné (nastav přes `wrangler secret put` / dashboard):
  *   STRAVA_CLIENT_ID      (var)    — Client ID tvé Strava API aplikace
  *   STRAVA_CLIENT_SECRET  (secret) — Client Secret tvé Strava API aplikace
@@ -27,7 +31,7 @@ const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 function corsHeaders(env) {
   return {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Vary': 'Origin'
   };
@@ -320,6 +324,63 @@ async function handleLogout(request, env) {
   return json({ ok: true }, env);
 }
 
+// ---------------------------------------------------------------------------
+// Synchronizace stavu appky mezi zařízeními
+// ---------------------------------------------------------------------------
+
+function parseJsonColumn(value) {
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+async function handleGetUserData(request, env) {
+  const user = await getSessionUser(env, getBearerToken(request));
+  if (!user) return json({ error: 'unauthorized' }, env, 401);
+
+  const row = await env.DB.prepare(
+    'SELECT profile, history, pr_log, theme, strava, updated_at FROM user_data WHERE user_id = ?'
+  ).bind(user.id).first();
+
+  if (!row) return json({ data: null }, env);
+  return json({
+    data: {
+      profile: parseJsonColumn(row.profile),
+      history: parseJsonColumn(row.history),
+      prLog: parseJsonColumn(row.pr_log),
+      theme: row.theme || null,
+      strava: parseJsonColumn(row.strava),
+      updatedAt: row.updated_at
+    }
+  }, env);
+}
+
+async function handlePutUserData(request, env) {
+  const user = await getSessionUser(env, getBearerToken(request));
+  if (!user) return json({ error: 'unauthorized' }, env, 401);
+
+  const body = await request.json().catch(() => ({}));
+  await env.DB.prepare(
+    `INSERT INTO user_data (user_id, profile, history, pr_log, theme, strava, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(user_id) DO UPDATE SET
+       profile = excluded.profile,
+       history = excluded.history,
+       pr_log = excluded.pr_log,
+       theme = excluded.theme,
+       strava = excluded.strava,
+       updated_at = excluded.updated_at`
+  ).bind(
+    user.id,
+    body.profile != null ? JSON.stringify(body.profile) : null,
+    body.history != null ? JSON.stringify(body.history) : null,
+    body.prLog != null ? JSON.stringify(body.prLog) : null,
+    body.theme || null,
+    body.strava != null ? JSON.stringify(body.strava) : null
+  ).run();
+
+  return json({ ok: true }, env);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -352,10 +413,20 @@ export default {
     if (url.pathname === '/auth/logout' && request.method === 'POST') {
       return handleLogout(request, env);
     }
+    if (url.pathname === '/me/data' && request.method === 'GET') {
+      return handleGetUserData(request, env);
+    }
+    if (url.pathname === '/me/data' && request.method === 'PUT') {
+      return handlePutUserData(request, env);
+    }
 
     return json({
       error: 'not found',
-      routes: ['/authorize', '/callback', '/refresh', '/create-activity', '/auth/register', '/auth/login', '/auth/me', '/auth/logout']
+      routes: [
+        '/authorize', '/callback', '/refresh', '/create-activity',
+        '/auth/register', '/auth/login', '/auth/me', '/auth/logout',
+        '/me/data'
+      ]
     }, env, 404);
   }
 };

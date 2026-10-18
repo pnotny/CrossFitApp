@@ -134,3 +134,18 @@ Od teď se na kartě uloženého tréninku objeví tlačítko **🟠 Export na S
 - `POST /auth/login` `{ username, password }` → `{ token, user }`
 - `GET  /auth/me` s headerem `Authorization: Bearer <token>` → `{ user }`
 - `POST /auth/logout` s headerem `Authorization: Bearer <token>` → zruší session
+
+## Sync API — appka na více zařízeních
+
+- `GET /me/data` s headerem `Authorization: Bearer <token>` → `{ data: { profile, history, prLog, theme, strava, updatedAt } | null }`
+- `PUT /me/data` s headerem `Authorization: Bearer <token>` a JSON tělem `{ profile, history, prLog, theme, strava }` → uloží celý stav
+
+Appka po přihlášení stáhne poslední uložený stav a po každé lokální změně
+(uložení profilu, tréninku, PR, změně motivu, Strava) ho pošle zpět —
+jednoduché "last write wins", bez řešení konfliktů mezi zařízeními (pro
+osobní/pár-uživatelské nasazení stačí).
+
+> Pokud jsi databázi `crossfit-coach-db` založil už dřív, stačí znovu spustit
+> `wrangler d1 execute crossfit-coach-db --remote --file=schema.sql` — přidá
+> jen novou tabulku `user_data`, existující tabulky nijak nezmění
+> (`CREATE TABLE IF NOT EXISTS`).
