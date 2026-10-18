@@ -19,6 +19,11 @@ final class AppStore: ObservableObject {
     @Published var stravaExportInFlight: Bool = false
     @Published var prLog: [PrEntry]
 
+    /// AI koučovací poznámky pro aktuálně zobrazený (dnešní) trénink, jedna na blok,
+    /// stejný počet a pořadí jako `currentWorkout?.blocks`. Nil = nenačtené/selhalo —
+    /// UI v tom případě ukazuje statické `block.notes` z generátoru.
+    @Published var aiBlockNotes: [String]?
+
     // MARK: Přihlášení
     @Published var authUser: AuthUser?
     @Published var authServerUrl: String
@@ -152,12 +157,14 @@ final class AppStore: ObservableObject {
             currentWorkoutSaved = false
         }
         editMode = false
+        refreshAICoachNotes()
     }
 
     func regenerate() {
         currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history)
         currentWorkoutSaved = false
         toast("Trénink přegenerován")
+        refreshAICoachNotes()
     }
 
     /// Po uložení profilu vždy přegeneruje, aby se nové údaje hned projevily
@@ -166,6 +173,33 @@ final class AppStore: ObservableObject {
         currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history)
         currentWorkoutSaved = false
         editMode = false
+        refreshAICoachNotes()
+    }
+
+    // MARK: AI koučovací poznámky
+
+    /// Zahodí předchozí AI poznámky (už neodpovídají novému tréninku) a pro dnešní
+    /// den (ne historii) se zkusí načíst nové — tiše selže a nechá statické poznámky
+    /// z generátoru, pokud není síť/AI dostupná.
+    private func refreshAICoachNotes() {
+        aiBlockNotes = nil
+        guard viewDate == DateUtils.todayString() else { return }
+        Task { @MainActor in await loadAICoachNotes() }
+    }
+
+    private func loadAICoachNotes() async {
+        guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty,
+              let workout = currentWorkout, workout.date == viewDate else { return }
+        let recentRpe = Array(history.compactMap { $0.rpe }.prefix(5))
+        do {
+            let notes = try await AICoachService.shared.fetchBlockNotes(
+                serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe
+            )
+            guard notes.count == workout.blocks.count, currentWorkout?.date == workout.date else { return }
+            aiBlockNotes = notes
+        } catch {
+            // Tiché selhání — appka beze změny ukazuje statické poznámky z generátoru.
+        }
     }
 
     func saveCurrentWorkout() {

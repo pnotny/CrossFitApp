@@ -151,14 +151,20 @@ struct DurationPickerCard: View {
                 .font(.system(size: 12, weight: .heavy))
                 .trackedUppercase(0.3)
                 .foregroundColor(DT.fgMuted)
-            HStack(spacing: 8) {
-                ForEach(options, id: \.self) { minutes in
-                    ChipButton(label: "\(minutes) min", isActive: store.profile.timeAvailable == minutes) {
-                        store.updateDuration(minutes)
+            // Horizontální ScrollView místo prosté HStack — 5 chipů (20–90 min) se na
+            // užších telefonech nevejde do jednoho řádku a bez ní by celá karta
+            // přetekla přes okraj obrazovky (viditelné hlavně u posledního chipu, 90 min).
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(options, id: \.self) { minutes in
+                        ChipButton(label: "\(minutes) min", isActive: store.profile.timeAvailable == minutes) {
+                            store.updateDuration(minutes)
+                        }
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
 }
@@ -208,6 +214,13 @@ struct BlockCardView: View {
     let onSelectExercise: (Exercise) -> Void
     let onSwap: (Int) -> Void
 
+    /// AI poznámka pro tenhle blok, pokud se povedlo ji načíst — jinak nil
+    /// a karta ukáže statickou `block.notes` z generátoru.
+    private var aiNote: String? {
+        guard let notes = store.aiBlockNotes, blockIndex < notes.count else { return nil }
+        return notes[blockIndex]
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
@@ -238,14 +251,22 @@ struct BlockCardView: View {
                 }
             }
 
-            if !block.notes.isEmpty {
-                Text(block.notes)
-                    .font(.system(size: 12))
-                    .foregroundColor(DT.fgMuted)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(DT.accent.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            let displayNotes = aiNote ?? block.notes
+            if !displayNotes.isEmpty {
+                HStack(alignment: .top, spacing: 6) {
+                    if aiNote != nil {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11))
+                            .foregroundColor(DT.accentText)
+                    }
+                    Text(displayNotes)
+                        .font(.system(size: 12))
+                        .foregroundColor(DT.fgMuted)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(DT.accent.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
             VStack(spacing: 8) {
