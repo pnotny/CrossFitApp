@@ -14,9 +14,12 @@ struct TodayView: View {
     @State private var shareItem: ShareImageItem?
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Dnes")
+                    .font(DF.display(28))
+                    .foregroundColor(DT.fg)
+
                     WeekStripView()
 
                     if let workout = store.currentWorkout {
@@ -62,15 +65,13 @@ struct TodayView: View {
                             .font(.system(size: 13, weight: .heavy))
                             .trackedUppercase(0.2)
                         }
-                    } else {
-                        EmptyStateView(icon: "🏋️", text: "Trénink se připravuje…")
-                    }
+                } else {
+                    EmptyStateView(icon: "🏋️", text: "Trénink se připravuje…")
                 }
-                .padding(16)
             }
-            .navigationTitle("Dnes")
-            .background(DT.bg)
+            .padding(16)
         }
+        .background(DT.bg)
         .sheet(item: $selectedExercise) { ex in
             ExerciseDetailView(exercise: ex)
         }

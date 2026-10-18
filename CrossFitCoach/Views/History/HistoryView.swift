@@ -12,39 +12,40 @@ struct HistoryView: View {
     @State private var showAddPr = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    prSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Historie")
+                    .font(DF.display(28))
+                    .foregroundColor(DT.fg)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Historie tréninků")
-                            .font(.system(size: 12, weight: .heavy))
-                            .trackedUppercase(0.3)
-                            .foregroundColor(DT.fgMuted)
+                prSection
 
-                        if store.history.isEmpty {
-                            EmptyStateView(icon: "📅", text: "Zatím žádné uložené tréninky.")
-                        } else {
-                            VStack(spacing: 8) {
-                                ForEach(store.history, id: \.date) { workout in
-                                    Button { selectedWorkout = workout } label: {
-                                        historyRow(workout)
-                                    }
-                                    .buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Historie tréninků")
+                        .font(.system(size: 12, weight: .heavy))
+                        .trackedUppercase(0.3)
+                        .foregroundColor(DT.fgMuted)
+
+                    if store.history.isEmpty {
+                        EmptyStateView(icon: "📅", text: "Zatím žádné uložené tréninky.")
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(store.history, id: \.date) { workout in
+                                Button { selectedWorkout = workout } label: {
+                                    historyRow(workout)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
-                    .cardStyle()
                 }
-                .padding(16)
+                .cardStyle()
             }
-            .navigationTitle("Historie")
-            .background(DT.bg)
-            .sheet(item: $selectedWorkout) { HistoryWorkoutDetailView(workout: $0) }
-            .sheet(isPresented: $showAddPr) { AddPrSheetView() }
+            .padding(16)
         }
+        .background(DT.bg)
+        .sheet(item: $selectedWorkout) { HistoryWorkoutDetailView(workout: $0) }
+        .sheet(isPresented: $showAddPr) { AddPrSheetView() }
     }
 
     private var prSection: some View {

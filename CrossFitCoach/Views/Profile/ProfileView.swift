@@ -12,46 +12,47 @@ struct ProfileView: View {
     private static let preferredFormatOptions: [WorkoutFormat] = [.emom, .amrap, .forTime, .chipper, .tabata, .intervals, .steady]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    basicsCard
-                    if let suggestion = levelUpSuggestion {
-                        levelUpCard(suggestion)
-                    }
-                    oneRMCard
-                    equipmentCard
-                    excludedPatternsCard
-                    goalCard
-                    preferredFormatsCard
-                    autoregCard
-                    weeklyTemplateCard
-                    stravaCard
-                    appearanceCard
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Profil")
+                    .font(DF.display(28))
+                    .foregroundColor(DT.fg)
 
-                    HStack(spacing: 10) {
-                        Button {
-                            store.loadTestProfile()
-                            loadDraft()
-                        } label: {
-                            Text("Testovací profil")
-                        }
-                        .buttonStyle(.dtSecondary)
-
-                        Button {
-                            store.saveProfile(draft)
-                        } label: {
-                            Text("Uložit profil")
-                        }
-                        .buttonStyle(.dtPrimary)
-                    }
+                basicsCard
+                if let suggestion = levelUpSuggestion {
+                    levelUpCard(suggestion)
                 }
-                .padding(16)
+                oneRMCard
+                equipmentCard
+                excludedPatternsCard
+                goalCard
+                preferredFormatsCard
+                autoregCard
+                weeklyTemplateCard
+                stravaCard
+                appearanceCard
+
+                HStack(spacing: 10) {
+                    Button {
+                        store.loadTestProfile()
+                        loadDraft()
+                    } label: {
+                        Text("Testovací profil")
+                    }
+                    .buttonStyle(.dtSecondary)
+
+                    Button {
+                        store.saveProfile(draft)
+                    } label: {
+                        Text("Uložit profil")
+                    }
+                    .buttonStyle(.dtPrimary)
+                }
             }
-            .navigationTitle("Profil")
-            .background(DT.bg)
-            .onAppear { loadDraft() }
+            .padding(16)
         }
+        .background(DT.bg)
+        .onAppear { loadDraft() }
     }
 
     private func loadDraft() {

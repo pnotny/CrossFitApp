@@ -13,41 +13,62 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ChipButton(label: "Vše", isActive: categoryFilter == nil) { categoryFilter = nil }
-                            ForEach(MovementCategory.allCases, id: \.self) { cat in
-                                ChipButton(label: cat.label, isActive: categoryFilter == cat) {
-                                    categoryFilter = categoryFilter == cat ? nil : cat
-                                }
-                            }
-                        }
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Cviky")
+                    .font(DF.display(28))
+                    .foregroundColor(DT.fg)
 
-                    if filtered.isEmpty {
-                        EmptyStateView(icon: "🔍", text: "Žádné cviky neodpovídají filtru.")
-                    } else {
-                        VStack(spacing: 8) {
-                            ForEach(filtered) { ex in
-                                Button { selectedExercise = ex } label: {
-                                    libraryRow(ex)
-                                }
-                                .buttonStyle(.plain)
-                            }
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(DT.fgFaint)
+                    TextField("Hledat cvik", text: $searchText)
+                        .foregroundColor(DT.fg)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(DT.fgFaint)
                         }
-                        .cardStyle()
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(16)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(DT.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(DT.line, lineWidth: 1))
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ChipButton(label: "Vše", isActive: categoryFilter == nil) { categoryFilter = nil }
+                        ForEach(MovementCategory.allCases, id: \.self) { cat in
+                            ChipButton(label: cat.label, isActive: categoryFilter == cat) {
+                                categoryFilter = categoryFilter == cat ? nil : cat
+                            }
+                        }
+                    }
+                }
+
+                if filtered.isEmpty {
+                    EmptyStateView(icon: "🔍", text: "Žádné cviky neodpovídají filtru.")
+                } else {
+                    VStack(spacing: 8) {
+                        ForEach(filtered) { ex in
+                            Button { selectedExercise = ex } label: {
+                                libraryRow(ex)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .cardStyle()
+                }
             }
-            .navigationTitle("Cviky")
-            .background(DT.bg)
-            .searchable(text: $searchText, prompt: "Hledat cvik")
-            .sheet(item: $selectedExercise) { ExerciseDetailView(exercise: $0) }
+            .padding(16)
         }
+        .background(DT.bg)
+        .sheet(item: $selectedExercise) { ExerciseDetailView(exercise: $0) }
     }
 
     private func libraryRow(_ ex: Exercise) -> some View {
