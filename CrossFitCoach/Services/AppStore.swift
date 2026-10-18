@@ -180,7 +180,18 @@ final class AppStore: ObservableObject {
 
     @discardableResult
     func exportCurrentWorkoutToStrava() async -> Bool {
-        guard let auth = stravaAuth, auth.isConnected, let refreshToken = auth.refreshToken, var w = currentWorkout else {
+        guard let w = currentWorkout else {
+            toast("Nejdřív vygeneruj trénink")
+            return false
+        }
+        return await exportWorkoutToStrava(w)
+    }
+
+    /// Exportuje libovolný (i historický) trénink na Strava — používá se jak pro dnešní
+    /// trénink, tak pro export jednotlivých položek z Historie.
+    @discardableResult
+    func exportWorkoutToStrava(_ workout: Workout) async -> Bool {
+        guard let auth = stravaAuth, auth.isConnected, let refreshToken = auth.refreshToken else {
             toast("Nejdřív připoj Strava v Profilu")
             return false
         }
@@ -193,11 +204,14 @@ final class AppStore: ObservableObject {
             storage.saveStravaAuth(updatedAuth)
             stravaAuth = updatedAuth
 
-            let activityId = try await StravaService.shared.exportWorkout(workerUrl: auth.workerUrl, accessToken: refreshed.accessToken, workout: w)
-            w.stravaActivityId = activityId
-            history = storage.saveWorkoutToHistory(w)
-            currentWorkout = w
-            currentWorkoutSaved = true
+            let activityId = try await StravaService.shared.exportWorkout(workerUrl: auth.workerUrl, accessToken: refreshed.accessToken, workout: workout)
+            var updated = workout
+            updated.stravaActivityId = activityId
+            history = storage.saveWorkoutToHistory(updated)
+            if currentWorkout?.date == updated.date {
+                currentWorkout = updated
+                currentWorkoutSaved = true
+            }
             toast("Odesláno na Strava 🎉")
             return true
         } catch {

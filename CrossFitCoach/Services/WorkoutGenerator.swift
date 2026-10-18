@@ -84,6 +84,27 @@ enum WorkoutGenerator {
         return w.blocks.flatMap { $0.exercises.map { $0.pattern } }
     }
 
+    /// Pohybové vzory z TĚŽKÝCH silových bloků (format == .strength) za posledních `daysBack`
+    /// dní. Tvrdé vyloučení napříč celým dalším tréninkem (síla i metcon/EMOM), aby např. po
+    /// těžkém dni na nohy hned příští den/dny nebyly zase dřepy.
+    static func recentHeavyPatterns(_ history: [Workout], _ dateString: String, daysBack: Int) -> Set<MovementPattern> {
+        var patterns = Set<MovementPattern>()
+        for i in 1...daysBack {
+            let key = DateUtils.dateMinusDays(dateString, i)
+            guard let w = history.first(where: { $0.date == key }) else { continue }
+            for block in w.blocks where block.format == .strength {
+                for ex in block.exercises { patterns.insert(ex.pattern) }
+            }
+        }
+        return patterns
+    }
+
+    /// Kombinuje včerejší vzory (lehké vyloučení) s vzory z nedávných těžkých silových bloků
+    /// (silnější vyloučení, delší okno) — použij jako základ pro avoidPatterns v celém dni.
+    static func recoveryAvoidPatterns(_ history: [Workout], _ dateString: String) -> Set<MovementPattern> {
+        Set(yesterdayPatterns(history, dateString)).union(recentHeavyPatterns(history, dateString, daysBack: 2))
+    }
+
     /// Zátěž svalových skupin za posledních `daysBack` dní (novější den = vyšší váha).
     static func recentMuscleLoad(_ history: [Workout], _ dateString: String, daysBack: Int) -> [String: Int] {
         var loadMap: [String: Int] = [:]
@@ -255,8 +276,8 @@ enum WorkoutGenerator {
     // MARK: Stavba jednotlivých typů dne
 
     static func buildStrengthDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int]) -> [WorkoutBlock] {
-        let avoid = yesterdayPatterns(history, dateString)
-        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 2)
+        let avoid = recoveryAvoidPatterns(history, dateString)
+        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let pool = filterPool(profile, categories: [.weightlifting]).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
         let mainCandidates = pool.filter { !avoid.contains($0.pattern) }
         let mainPool = mainCandidates.isEmpty ? pool : mainCandidates
@@ -284,14 +305,14 @@ enum WorkoutGenerator {
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
-            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns, muscleLoad: muscleLoad, autoreg: autoreg
+            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg
         ))
         return blocks
     }
 
     static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int]) -> [WorkoutBlock] {
-        let avoid = yesterdayPatterns(history, dateString)
-        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 2)
+        let avoid = recoveryAvoidPatterns(history, dateString)
+        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let skillPool = filterPool(profile, categories: [.gymnastics]).filter { !avoid.contains($0.pattern) }
         let skillCandidates = skillPool.isEmpty ? filterPool(profile, categories: [.gymnastics]) : skillPool
         let skillPick = leastLoadedPick(skillCandidates, muscleLoad)
@@ -317,7 +338,7 @@ enum WorkoutGenerator {
         let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman])
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
-            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns, muscleLoad: muscleLoad, autoreg: autoreg
+            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg
         ))
         return blocks
     }
@@ -363,12 +384,12 @@ enum WorkoutGenerator {
     }
 
     static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int]) -> [WorkoutBlock] {
-        let avoid = yesterdayPatterns(history, dateString)
-        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 2)
+        let avoid = recoveryAvoidPatterns(history, dateString)
+        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
         let timeCap = clampInt(profile.timeAvailable, 15, 60)
         let count = clampInt(Int((Double(timeCap) / 6).rounded()), 4, 8)
-        let picks = pickExercises(pool, count: count, avoidPatterns: avoid, muscleLoad: muscleLoad)
+        let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad)
         let baseReps = [50, 40, 35, 30, 25, 20, 15, 10]
         let exercises = picks.enumerated().map { i, ex in
             toWorkoutExercise(ex, profile, purpose: .metcon, reps: String(i < baseReps.count ? baseReps[i] : 15), note: "", autoreg: autoreg)

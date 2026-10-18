@@ -1,4 +1,10 @@
 import SwiftUI
+import UIKit
+
+private struct ShareImageItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
 
 struct HistoryView: View {
     @EnvironmentObject var store: AppStore
@@ -138,7 +144,10 @@ private struct SparklineView: View {
 
 struct HistoryWorkoutDetailView: View {
     let workout: Workout
+    @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @State private var shareItem: ShareImageItem?
+    @State private var exporting = false
 
     var body: some View {
         NavigationStack {
@@ -153,6 +162,40 @@ struct HistoryWorkoutDetailView: View {
                     Text("\(workout.totalMinutes) min · \(workout.estKcal) kcal")
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            if let image = ShareCardRenderer.render(workout: workout) {
+                                shareItem = ShareImageItem(image: image)
+                            } else {
+                                store.toast("Export karty se nepodařil")
+                            }
+                        } label: {
+                            Label("Sdílet", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        if store.stravaAuth?.isConnected == true {
+                            Button {
+                                exporting = true
+                                Task {
+                                    await store.exportWorkoutToStrava(workout)
+                                    exporting = false
+                                }
+                            } label: {
+                                HStack {
+                                    if exporting { ProgressView().tint(.white) }
+                                    Text(workout.stravaActivityId != nil ? "Znovu na Strava" : "Na Strava")
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.98, green: 0.31, blue: 0.09))
+                            .disabled(exporting)
+                        }
+                    }
+                    .font(.system(size: 14, weight: .semibold))
 
                     ForEach(Array(workout.blocks.enumerated()), id: \.offset) { _, block in
                         VStack(alignment: .leading, spacing: 8) {
@@ -181,6 +224,9 @@ struct HistoryWorkoutDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Hotovo") { dismiss() } }
+            }
+            .sheet(item: $shareItem) { item in
+                ActivityShareSheet(items: [item.image])
             }
         }
     }
