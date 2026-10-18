@@ -75,6 +75,11 @@ final class Storage {
         return history
     }
 
+    /// Přepíše celou historii najednou — používá se při stažení stavu z jiného zařízení.
+    func replaceHistory(_ history: [Workout]) {
+        write(history, "history")
+    }
+
     // MARK: PR log
 
     func getPrLog() -> [PrEntry] {
@@ -88,6 +93,11 @@ final class Storage {
         log.sort { $0.date < $1.date }
         write(log, "prlog")
         return log
+    }
+
+    /// Přepíše celý PR log najednou — používá se při stažení stavu z jiného zařízení.
+    func replacePrLog(_ log: [PrEntry]) {
+        write(log, "prlog")
     }
 
     // MARK: Motiv

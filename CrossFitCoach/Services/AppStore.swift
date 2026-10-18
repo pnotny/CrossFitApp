@@ -51,17 +51,22 @@ final class AppStore: ObservableObject {
     // MARK: Přihlášení
 
     /// Zavolat jednou při startu appky — ověří uložený session token na serveru,
-    /// než appku zpřístupní (mandatorní login gate).
+    /// než appku zpřístupní (mandatorní login gate), a stáhne poslední stav
+    /// uložený na serveru (pro případ, že se od posledního spuštění appky
+    /// změnilo něco na jiném zařízení).
     func restoreSession() async {
         defer { isRestoringSession = false }
         guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
         do {
             authUser = try await AuthService.shared.me(serverUrl: authServerUrl, token: token)
+            await syncDown()
         } catch {
             KeychainStore.delete(forKey: Self.authTokenKey)
         }
     }
 
+    /// Po přihlášení existujícího účtu stáhneme poslední stav ze serveru —
+    /// typicky jde o jiné/nové zařízení, server má aktuálnější data.
     func login(serverUrl: String, username: String, password: String) async {
         authError = nil
         authInFlight = true
@@ -69,11 +74,14 @@ final class AppStore: ObservableObject {
         do {
             let (token, user) = try await AuthService.shared.login(serverUrl: serverUrl, username: username, password: password)
             persistSession(serverUrl: serverUrl, token: token, user: user)
+            await syncDown()
         } catch {
             authError = error.localizedDescription
         }
     }
 
+    /// Po založení nového účtu nahrajeme to, co už appka lokálně má (profil
+    /// atd.), aby se nic neztratilo — na serveru zatím nic jiného není.
     func register(serverUrl: String, username: String, password: String) async {
         authError = nil
         authInFlight = true
@@ -81,6 +89,7 @@ final class AppStore: ObservableObject {
         do {
             let (token, user) = try await AuthService.shared.register(serverUrl: serverUrl, username: username, password: password)
             persistSession(serverUrl: serverUrl, token: token, user: user)
+            syncUp()
         } catch {
             authError = error.localizedDescription
         }
@@ -106,6 +115,30 @@ final class AppStore: ObservableObject {
             storage.saveStravaAuth(StravaAuth(workerUrl: serverUrl, refreshToken: nil, athleteId: nil, athleteName: nil))
             stravaAuth = storage.getStravaAuth()
         }
+    }
+
+    // MARK: Synchronizace mezi zařízeními
+
+    /// Pošle aktuální stav appky na server (fire-and-forget, appka na výsledek nečeká).
+    /// Volá se po každé lokální změně, co se jinak ukládá do Storage.
+    private func syncUp() {
+        guard authUser != nil, let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
+        let state = SyncedState(profile: profile, history: history, prLog: prLog, theme: theme, strava: stravaAuth)
+        let serverUrl = authServerUrl
+        Task { await SyncService.shared.push(serverUrl: serverUrl, token: token, state: state) }
+    }
+
+    /// Stáhne stav ze serveru a přepíše jím lokální data i Storage. Tiše selže,
+    /// pokud server nic nemá nebo je nedostupný — appka pak jede dál s tím, co má lokálně.
+    private func syncDown() async {
+        guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
+        guard let state = try? await SyncService.shared.pull(serverUrl: authServerUrl, token: token) else { return }
+        if let p = state.profile { profile = p; storage.saveProfile(p) }
+        if let h = state.history { history = h; storage.replaceHistory(h) }
+        if let log = state.prLog { prLog = log; storage.replacePrLog(log) }
+        if let t = state.theme { theme = t; storage.setTheme(t) }
+        if let s = state.strava { stravaAuth = s; storage.saveStravaAuth(s) }
+        loadOrGenerateWorkout()
     }
 
     // MARK: Trénink pro aktuálně zobrazený den
@@ -140,12 +173,14 @@ final class AppStore: ObservableObject {
         history = storage.saveWorkoutToHistory(w)
         currentWorkoutSaved = true
         toast("Trénink uložen do historie")
+        syncUp()
     }
 
     func deleteCurrentWorkout() {
         history = storage.deleteWorkout(for: viewDate)
         loadOrGenerateWorkout()
         toast("Trénink smazán")
+        syncUp()
     }
 
     func saveRpe(_ value: Int) {
@@ -155,6 +190,7 @@ final class AppStore: ObservableObject {
         currentWorkout = w
         currentWorkoutSaved = true
         toast("RPE uloženo — příští trénink se tomu přizpůsobí")
+        syncUp()
     }
 
     func updateDuration(_ minutes: Int) {
@@ -162,6 +198,7 @@ final class AppStore: ObservableObject {
         profile.timeAvailable = minutes
         storage.saveProfile(profile)
         regenerateForCurrentProfile()
+        syncUp()
     }
 
     func updateReps(blockIndex: Int, exerciseIndex: Int, reps: String) {
@@ -211,6 +248,7 @@ final class AppStore: ObservableObject {
         storage.saveProfile(newProfile)
         regenerateForCurrentProfile()
         toast("Profil uložen")
+        syncUp()
     }
 
     func loadTestProfile() {
@@ -218,6 +256,7 @@ final class AppStore: ObservableObject {
         storage.saveProfile(profile)
         regenerateForCurrentProfile()
         toast("Testovací profil načten a uložen")
+        syncUp()
     }
 
     // MARK: PR log
@@ -227,6 +266,7 @@ final class AppStore: ObservableObject {
         profile.oneRM[lift] = value
         storage.saveProfile(profile)
         toast("PR uložen")
+        syncUp()
     }
 
     // MARK: Strava
@@ -241,6 +281,7 @@ final class AppStore: ObservableObject {
                     self.storage.saveStravaAuth(auth)
                     self.stravaAuth = auth
                     self.toast("Strava připojena 🎉")
+                    self.syncUp()
                 case .failure(let error):
                     self.toast("Připojení Strava selhalo: \(error.localizedDescription)")
                 }
@@ -252,6 +293,7 @@ final class AppStore: ObservableObject {
         storage.clearStravaAuth()
         stravaAuth = storage.getStravaAuth()
         toast("Strava odpojena")
+        syncUp()
     }
 
     @discardableResult
@@ -289,6 +331,7 @@ final class AppStore: ObservableObject {
                 currentWorkoutSaved = true
             }
             toast("Odesláno na Strava 🎉")
+            syncUp()
             return true
         } catch {
             toast("Export na Strava selhal: \(error.localizedDescription)")
@@ -304,6 +347,7 @@ final class AppStore: ObservableObject {
         storage.setTheme(next)
         let label = next == .auto ? "Automaticky" : (next == .dark ? "Tmavý" : "Světlý")
         toast("Motiv: \(label)")
+        syncUp()
     }
 
     var colorScheme: ColorScheme? {
