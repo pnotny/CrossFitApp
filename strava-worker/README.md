@@ -172,13 +172,19 @@ osobní/pár-uživatelské nasazení stačí).
 > jen novou tabulku `user_data`, existující tabulky nijak nezmění
 > (`CREATE TABLE IF NOT EXISTS`).
 
-## AI API — koučovací poznámky
+## AI API — koučovací poznámky a překlad
 
 - `POST /ai/workout-notes` s headerem `Authorization: Bearer <token>` a JSON
   tělem `{ dayTypeLabel, goal, level, blocks: [{ title, formatLabel, scheme,
-  exercises: [{ name, reps }] }], recentRpe: [Int] }` → `{ notes: [String] }`
-  (jedna poznámka na blok, ve stejném pořadí a počtu)
+  exercises: [{ name, reps }] }], recentRpe: [Int], language: "cs" | "en" }`
+  → `{ notes: [String] }` (jedna poznámka na blok, ve stejném pořadí a počtu,
+  rovnou napsaná v `language`)
+- `POST /ai/translate` s headerem `Authorization: Bearer <token>` a JSON tělem
+  `{ texts: [String] }` (max 60 položek, čeština) → `{ translations: [String] }`
+  (anglický překlad, stejné pořadí a počet) — appka to používá pro coaching
+  cues a časté chyby u cviků, když je appka přepnutá na angličtinu
 
-Běží na modelu `@cf/meta/llama-3.1-8b-instruct` přes Workers AI binding `AI`.
-Chyba (chybějící binding, nečekaný výstup modelu) vrátí `{ error }` a appka
-na to reaguje tiše — ukáže dál statické poznámky z generátoru.
+Obojí běží na modelu `@cf/meta/llama-3.1-8b-instruct` přes Workers AI binding
+`AI`. Chyba (chybějící binding, nečekaný výstup modelu) vrátí `{ error }` a
+appka na to reaguje tiše — u poznámek ukáže dál statické texty z generátoru,
+u překladu nechá zobrazený český text.

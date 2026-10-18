@@ -17,11 +17,13 @@
  *   GET /me/data            → vrátí uložený stav (profil/historie/PR/motiv/Strava)
  *   PUT /me/data            → uloží aktuální stav (appka posílá celý stav, "last write wins")
  *
- * 4) AI koučovací poznámky (Authorization: Bearer <token>), Cloudflare Workers AI
- *    (zdarma v rámci free tier, open-source model, žádný externí účet navíc):
+ * 4) AI koučovací poznámky a překlad (Authorization: Bearer <token>), Cloudflare
+ *    Workers AI (zdarma v rámci free tier, open-source model, žádný externí účet):
  *   POST /ai/workout-notes  → pro dnešní trénink vrátí krátkou poznámku ke každému
- *                             bloku; appka tím při úspěchu nahradí statické poznámky
- *                             z generátoru, při chybě/výpadku sítě je necháme beze změny
+ *                             bloku, rovnou v jazyce appky; appka tím při úspěchu
+ *                             nahradí statické poznámky z generátoru, při chybě je necháme beze změny
+ *   POST /ai/translate      → přeloží pole krátkých textů (cz→en) — appka to používá
+ *                             pro coaching cues / časté chyby u cviků (anglická mutace appky)
  *
  * Env proměnné (nastav přes `wrangler secret put` / dashboard):
  *   STRAVA_CLIENT_ID      (var)    — Client ID tvé Strava API aplikace
@@ -410,16 +412,21 @@ async function handleAIWorkoutNotes(request, env) {
     return `${i + 1}. ${b.title} (${b.formatLabel || ''}${scheme}) — cviky: ${exList || '—'}`;
   }).join('\n');
 
-  const rpeLine = Array.isArray(body.recentRpe) && body.recentRpe.length
-    ? `Poslední RPE (náročnost, 1–10): ${body.recentRpe.join(', ')}.`
-    : '';
+  const language = body.language === 'en' ? 'en' : 'cs';
 
-  const prompt = `Jsi zkušený CrossFit trenér. Cvičenec: úroveň ${body.level || 'neznámá'}, cíl ${body.goal || 'neznámý'}. ` +
-    `Dnešní typ dne: ${body.dayTypeLabel || ''}. ${rpeLine}\n\n` +
-    `Tréninkové bloky:\n${blockLines}\n\n` +
-    `Pro KAŽDÝ blok napiš jednu krátkou (max 2 věty) koučovací poznámku česky — konkrétní a praktickou, ` +
-    `k technice, tempu nebo strategii daného bloku. Odpověz POUZE jako JSON pole řetězců, přesně ve stejném ` +
-    `pořadí a počtu jako bloky výše — žádný markdown, žádné vysvětlení, jen to pole.`;
+  const prompt = language === 'en'
+    ? (`You are an experienced CrossFit coach. Athlete: level ${body.level || 'unknown'}, goal ${body.goal || 'unknown'}. ` +
+       `Today's day type: ${body.dayTypeLabel || ''}. ${Array.isArray(body.recentRpe) && body.recentRpe.length ? `Recent RPE (difficulty, 1-10): ${body.recentRpe.join(', ')}.` : ''}\n\n` +
+       `Workout blocks:\n${blockLines}\n\n` +
+       `For EVERY block write one short (max 2 sentences) coaching note in English — specific and practical, ` +
+       `about technique, pacing or strategy for that block. Respond ONLY as a JSON array of strings, in exactly ` +
+       `the same order and count as the blocks above — no markdown, no explanation, just the array.`)
+    : (`Jsi zkušený CrossFit trenér. Cvičenec: úroveň ${body.level || 'neznámá'}, cíl ${body.goal || 'neznámý'}. ` +
+       `Dnešní typ dne: ${body.dayTypeLabel || ''}. ${Array.isArray(body.recentRpe) && body.recentRpe.length ? `Poslední RPE (náročnost, 1–10): ${body.recentRpe.join(', ')}.` : ''}\n\n` +
+       `Tréninkové bloky:\n${blockLines}\n\n` +
+       `Pro KAŽDÝ blok napiš jednu krátkou (max 2 věty) koučovací poznámku česky — konkrétní a praktickou, ` +
+       `k technice, tempu nebo strategii daného bloku. Odpověz POUZE jako JSON pole řetězců, přesně ve stejném ` +
+       `pořadí a počtu jako bloky výše — žádný markdown, žádné vysvětlení, jen to pole.`);
 
   try {
     const result = await env.AI.run(AI_MODEL, {
@@ -436,6 +443,45 @@ async function handleAIWorkoutNotes(request, env) {
       return json({ error: 'unexpected AI output' }, env, 502);
     }
     return json({ notes }, env);
+  } catch (e) {
+    return json({ error: e.message || 'AI request failed' }, env, 502);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Obecný AI překlad krátkých textů (cviky — cues/mistakes/svaly)
+// ---------------------------------------------------------------------------
+
+async function handleAITranslate(request, env) {
+  const user = await getSessionUser(env, getBearerToken(request));
+  if (!user) return json({ error: 'unauthorized' }, env, 401);
+  if (!env.AI) return json({ error: 'Workers AI není na Workeru nastavené (binding AI).' }, env, 501);
+
+  const body = await request.json().catch(() => ({}));
+  const texts = Array.isArray(body.texts) ? body.texts : [];
+  if (texts.length === 0) return json({ error: 'missing texts' }, env, 400);
+  if (texts.length > 60) return json({ error: 'too many texts (max 60)' }, env, 400);
+
+  const numbered = texts.map((t, i) => `${i + 1}. ${t}`).join('\n');
+  const prompt = `Translate each of the following CrossFit coaching phrases from Czech to natural, concise English. ` +
+    `Keep exercise/equipment names as commonly used in English CrossFit terminology. ` +
+    `Respond ONLY as a JSON array of strings, same order and count as below — no markdown, no explanation.\n\n${numbered}`;
+
+  try {
+    const result = await env.AI.run(AI_MODEL, {
+      messages: [
+        { role: 'system', content: 'You respond only with a valid JSON array of strings, nothing else around it.' },
+        { role: 'user', content: prompt }
+      ]
+    });
+
+    const raw = (result && result.response) || '';
+    const match = raw.match(/\[[\s\S]*\]/);
+    const translations = match ? JSON.parse(match[0]) : null;
+    if (!Array.isArray(translations) || translations.length !== texts.length || !translations.every((t) => typeof t === 'string')) {
+      return json({ error: 'unexpected AI output' }, env, 502);
+    }
+    return json({ translations }, env);
   } catch (e) {
     return json({ error: e.message || 'AI request failed' }, env, 502);
   }
@@ -482,13 +528,16 @@ export default {
     if (url.pathname === '/ai/workout-notes' && request.method === 'POST') {
       return handleAIWorkoutNotes(request, env);
     }
+    if (url.pathname === '/ai/translate' && request.method === 'POST') {
+      return handleAITranslate(request, env);
+    }
 
     return json({
       error: 'not found',
       routes: [
         '/authorize', '/callback', '/refresh', '/create-activity',
         '/auth/register', '/auth/login', '/auth/me', '/auth/logout',
-        '/me/data', '/ai/workout-notes'
+        '/me/data', '/ai/workout-notes', '/ai/translate'
       ]
     }, env, 404);
   }
