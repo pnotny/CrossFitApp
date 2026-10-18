@@ -54,18 +54,11 @@ enum DF {
     }
 }
 
-extension Text {
-    /// Verzálkový štítek s mírným trackingem — pro badge/popisky typu "KCAL", "DNES".
-    /// `kerning` existuje jen na `Text`, proto samostatná přetížená verze.
-    func trackedUppercase(_ spacing: CGFloat = 0.6) -> Text {
-        self.textCase(.uppercase).kerning(spacing)
-    }
-}
-
 extension View {
-    /// Fallback pro `configuration.label` v ButtonStyle (opaque `some View`, ne nutně
-    /// `Text`) — `kerning` tam není k dispozici, takže jen verzálky bez trackingu.
+    /// Verzálkový štítek s mírným trackingem — pro badge/popisky typu "KCAL", "DNES"
+    /// i pro ButtonStyle labely. `.textCase` samo o sobě už vrací `some View` (není
+    /// to řetězitelný modifikátor přímo na `Text`), takže stačí jedna obecná verze.
     func trackedUppercase(_ spacing: CGFloat = 0.6) -> some View {
-        self.textCase(.uppercase)
+        self.textCase(.uppercase).kerning(spacing)
     }
 }
