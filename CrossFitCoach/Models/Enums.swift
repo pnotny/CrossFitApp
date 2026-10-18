@@ -124,6 +124,18 @@ enum AthleteLevel: String, Codable, CaseIterable, Hashable {
         case .advanced, .rx: return .rx
         }
     }
+
+    /// Poměr mezi scaled (0) a RX (1) standardem zátěže pro cviky bez vlastního
+    /// 1RM. Na rozdíl od `tier` (který pro VÝBĚR a popis cviků sloučí advanced
+    /// a RX do jedné úrovně) tu všechny 4 úrovně dávají odlišnou váhu.
+    var standardBlend: Double {
+        switch self {
+        case .beginner: return 0
+        case .intermediate: return 1.0 / 3.0
+        case .advanced: return 2.0 / 3.0
+        case .rx: return 1
+        }
+    }
 }
 
 enum Gender: String, Codable, CaseIterable, Hashable {

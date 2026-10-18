@@ -209,18 +209,18 @@ enum WorkoutGenerator {
             return LoadResult(weight: weight, unit: "kg", source: "\(liftLabel) 1RM", pct: Int((pct * 100).rounded()), autoregAdj: adj)
         }
         if let standard = exercise.standard {
-            let tier = profile.level.tier
-            let table: LoadStandardValues
-            switch tier {
-            case .beginner: table = standard.scaled
-            case .rx: table = standard.rx
-            case .intermediate: table = LoadStandardValues(M: (standard.rx.M + standard.scaled.M) / 2, F: (standard.rx.F + standard.scaled.F) / 2)
-            }
+            // 4 odstupňované váhy (beginner/intermediate/advanced/RX) dopočítané
+            // lineární interpolací mezi scaled a RX kotvami z databáze cviků —
+            // advanced tak dostává citelně víc než intermediate, ne stejnou váhu jako RX.
+            let blend = profile.level.standardBlend
+            let table = LoadStandardValues(
+                M: standard.scaled.M + (standard.rx.M - standard.scaled.M) * blend,
+                F: standard.scaled.F + (standard.rx.F - standard.scaled.F) * blend
+            )
             var weight = table.value(for: profile.gender)
             if purpose == .technique { weight *= 0.6 }
             weight *= 1 + max(-0.1, min(0.1, Double(adj) / 100))
-            let sourceLabel = tier == .rx ? "RX standard" : "Scaled standard"
-            return LoadResult(weight: roundToStep(weight, step), unit: "kg", source: sourceLabel, pct: nil, autoregAdj: adj)
+            return LoadResult(weight: roundToStep(weight, step), unit: "kg", source: "\(profile.level.label) standard", pct: nil, autoregAdj: adj)
         }
         return nil
     }
