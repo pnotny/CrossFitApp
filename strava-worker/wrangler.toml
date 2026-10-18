@@ -1,0 +1,19 @@
+name = "crossfit-coach-strava-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+STRAVA_CLIENT_ID = "REPLACE_WITH_YOUR_STRAVA_CLIENT_ID"
+ALLOWED_ORIGIN = "https://pnotny.github.io"
+
+# STRAVA_CLIENT_SECRET se NEDÁVÁ sem (soubor je v gitu) — nastav ho jako secret:
+#   wrangler secret put STRAVA_CLIENT_SECRET
+
+# D1 databáze pro přihlašování uživatelů (users/sessions/login_attempts, viz schema.sql).
+# 1. Vytvoř databázi:  wrangler d1 create crossfit-coach-db
+# 2. Zkopíruj vrácené "database_id" sem místo placeholderu níže.
+# 3. Nahraj schéma:    wrangler d1 execute crossfit-coach-db --remote --file=schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "crossfit-coach-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"

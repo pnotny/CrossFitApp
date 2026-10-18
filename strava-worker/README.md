@@ -1,0 +1,136 @@
+# Backend — Cloudflare Worker (Strava proxy + přihlašování)
+
+Tento Worker dělá za appku dvě věci, které statický web/appka bez backendu
+sama bezpečně nezvládne:
+
+1. **Strava export** — po tréninku umí rovnou založit aktivitu na Stravě.
+   Strava vyžaduje, aby `client_secret` nikdy neopustil server, takže mezi
+   appkou a Stravou stojí tento proxy (zdarma, free tier stačí s velkou
+   rezervou).
+2. **Přihlašování uživatelů** — appka vyžaduje registraci/přihlášení před
+   použitím. Účty (jméno + hash hesla) a přihlašovací session tokeny se
+   ukládají v D1 databázi (serverless SQLite od Cloudflare), vázané na tento
+   Worker.
+
+Appka tvůj Strava účet ani client_secret nikdy neuvidí — ty vidí jen tento
+Worker, který běží pod tvým Cloudflare účtem.
+
+## 1. Založ Strava API aplikaci
+
+1. Jdi na https://www.strava.com/settings/api a vyplň novou aplikaci
+   (název/ikonka si vymysli, "Website" může být odkaz na appku).
+2. **Authorization Callback Domain** zatím nech např. `workers.dev` — doladíš
+   ho v kroku 4, až budeš znát přesnou doménu svého Workeru.
+3. Pozn. si **Client ID** a **Client Secret** — budeš je potřebovat za chvíli.
+
+## 2. Nainstaluj Wrangler (Cloudflare CLI)
+
+```bash
+npm install -g wrangler
+wrangler login     # otevře prohlížeč, přihlas se/založ si zdarma Cloudflare účet
+```
+
+## 3. Nasaď Worker
+
+V tomto repu je vše připravené ve složce `strava-worker/`:
+
+```bash
+cd strava-worker
+wrangler deploy
+```
+
+Wrangler vypíše URL nasazeného Workeru, něco jako:
+
+```
+https://crossfit-coach-strava-proxy.<tvuj-ucet>.workers.dev
+```
+
+Tu si ulož — je to **Worker proxy URL**, kterou za chvíli vložíš do appky.
+
+## 4. Nastav proměnné a secret
+
+```bash
+# Client ID (veřejné, může být v wrangler.toml — uprav si ho tam přímo,
+# nebo ho nastav i jako proměnnou takto):
+wrangler secret put STRAVA_CLIENT_ID
+
+# Client Secret (NIKDY nedávej do wrangler.toml ani do gitu):
+wrangler secret put STRAVA_CLIENT_SECRET
+```
+
+V `strava-worker/wrangler.toml` uprav `ALLOWED_ORIGIN` na skutečnou adresu,
+odkud appku otevíráš (např. `https://pnotny.github.io`), a znovu nasaď:
+
+```bash
+wrangler deploy
+```
+
+## 4b. Založ D1 databázi (přihlašování)
+
+Appka vyžaduje přihlášení, takže Worker potřebuje databázi pro účty a
+session tokeny:
+
+```bash
+cd strava-worker
+wrangler d1 create crossfit-coach-db
+```
+
+Příkaz vypíše `database_id` — zkopíruj ho do `wrangler.toml` místo
+`REPLACE_WITH_YOUR_D1_DATABASE_ID` (binding se jmenuje `DB`, to už je
+připravené). Pak nahraj schéma databáze:
+
+```bash
+wrangler d1 execute crossfit-coach-db --remote --file=schema.sql
+```
+
+A znovu nasaď Worker:
+
+```bash
+wrangler deploy
+```
+
+Admin účet (`admin` / `admin`) se vytvoří automaticky při prvním volání
+`/auth/register` nebo `/auth/login` — nemusíš ho nijak zakládat ručně.
+
+> **Pozor:** heslo `admin/admin` je snadno uhodnutelné. Worker má základní
+> ochranu proti brute-force útoku (po 5 špatných pokusech zamkne účet na
+> 5 minut), ale pro produkční/veřejné nasazení si po prvním přihlášení
+> admin heslo změň (zatím je třeba přes přímý zápis do D1 — appka
+> změnu hesla z UI ještě neumí).
+
+## 5. Dopoj Authorization Callback Domain na Stravě
+
+Zpátky na https://www.strava.com/settings/api — do pole **Authorization
+Callback Domain** vlož jen doménu Workeru bez `https://` a bez cesty, např.:
+
+```
+crossfit-coach-strava-proxy.tvuj-ucet.workers.dev
+```
+
+## 6. Propoj appku
+
+1. V appce jdi do **Profil → Strava**.
+2. Vlož Worker proxy URL z kroku 3 (celou, i s `https://`).
+3. Klikni **Připojit Strava** → odsouhlas přístup na Stravě → appka tě
+   přesměruje zpátky a ukáže "✅ Propojeno jako [tvoje jméno]".
+
+Od teď se na kartě uloženého tréninku objeví tlačítko **🟠 Export na Strava**.
+
+## Co Worker dělá (a nedělá)
+
+- Drží `client_secret` a vyměňuje/obnovuje Strava tokeny — appka pracuje
+  jen s refresh tokenem uloženým ve tvém prohlížeči/appce.
+- Ukládá uživatelské účty a session tokeny v D1 databázi (`users`,
+  `sessions`, `login_attempts` — viz `schema.sql`). Heslo se nikdy neukládá
+  v čitelné podobě, jen jako PBKDF2-SHA256 hash se solí.
+- Appka vyžaduje registraci/přihlášení před prvním použitím; po přihlášení
+  appka uchovává jen opakovaně použitelný session token (ne heslo).
+- Pokud appku nasdílíš dalším lidem, mohou si založit vlastní účet přes
+  `/auth/register` — všichni sdílejí stejnou D1 databázi tohoto Workeru.
+
+## Auth API (pro appku)
+
+- `POST /auth/register` `{ username, password }` → `{ token, user }`
+- `POST /auth/login` `{ username, password }` → `{ token, user }`
+- `GET  /auth/me` s headerem `Authorization: Bearer <token>` → `{ user }`
+- `POST /auth/logout` s headerem `Authorization: Bearer <token>` → zruší session
