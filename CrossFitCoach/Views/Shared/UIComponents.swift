@@ -154,14 +154,17 @@ struct ChipButton: View {
     let label: String
     let isActive: Bool
     var danger: Bool = false
+    /// Užší odsazení a menší písmo pro řádky, kde se vejde víc chipů najednou
+    /// (např. délka tréninku) — ostatní místa v appce zůstávají beze změny.
+    var compact: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .font(.system(size: compact ? 12 : 13, weight: .bold))
+                .padding(.horizontal, compact ? 10 : 14)
+                .padding(.vertical, compact ? 6 : 8)
                 .background(backgroundColor)
                 .foregroundColor(foregroundColor)
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))

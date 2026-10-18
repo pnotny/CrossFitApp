@@ -155,9 +155,9 @@ struct DurationPickerCard: View {
             // užších telefonech nevejde do jednoho řádku a bez ní by celá karta
             // přetekla přes okraj obrazovky (viditelné hlavně u posledního chipu, 90 min).
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 5) {
                     ForEach(options, id: \.self) { minutes in
-                        ChipButton(label: "\(minutes) min", isActive: store.profile.timeAvailable == minutes) {
+                        ChipButton(label: "\(minutes) min", isActive: store.profile.timeAvailable == minutes, compact: true) {
                             store.updateDuration(minutes)
                         }
                     }
