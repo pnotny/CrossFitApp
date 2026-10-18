@@ -10,16 +10,17 @@ struct TimerSheetView: View {
             HStack {
                 Button { engine.muted.toggle() } label: {
                     Image(systemName: engine.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.fgMuted)
                 }
                 Spacer()
                 Text(config.title)
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DT.fgMuted)
                     .lineLimit(1)
                 Spacer()
                 Button("Zavřít") { engine.destroy(); dismiss() }
                     .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DT.accentText)
             }
 
             BadgeView(text: config.formatLabel.uppercased(), color: config.dayType.color)
@@ -32,13 +33,14 @@ struct TimerSheetView: View {
                 .padding(.top, 10)
 
             Text(engine.displayText)
-                .font(.system(size: 72, weight: .heavy, design: .rounded))
+                .font(DF.display(72))
+                .foregroundColor(DT.fg)
                 .monospacedDigit()
 
             if !engine.subText.isEmpty {
                 Text(engine.subText)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DT.fgMuted)
             }
 
             if engine.showRoundCounter {
@@ -48,38 +50,31 @@ struct TimerSheetView: View {
                     }
                     Text("\(engine.rounds) kol")
                         .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(DT.fg)
                         .frame(minWidth: 70)
                     Button { engine.incrementRounds() } label: {
                         Image(systemName: "plus.circle.fill").font(.system(size: 28))
                     }
                 }
-                .foregroundColor(.accentColor)
+                .foregroundColor(DT.accentText)
                 .padding(.vertical, 6)
             }
 
             HStack(spacing: 12) {
                 Button { engine.reset() } label: {
                     Text("🔄 Reset")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
                 }
-                .background(Color(.secondarySystemBackground))
-                .foregroundColor(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .buttonStyle(.dtSecondary)
 
                 Button { engine.toggle() } label: {
                     Text(engine.running ? "⏸ Pauza" : "▶️ Start")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
                 }
-                .background(Color.accentColor)
-                .foregroundColor(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .buttonStyle(.dtPrimary)
             }
-            .font(.system(size: 15, weight: .bold))
             .padding(.top, 6)
         }
         .padding(24)
+        .background(DT.bg)
         .onAppear { engine.configure(config) }
         .onDisappear { engine.destroy() }
         .presentationDetents([.medium, .large])
@@ -87,7 +82,7 @@ struct TimerSheetView: View {
 
     private var phaseColor: Color {
         switch engine.phaseKind {
-        case .normal: return .accentColor
+        case .normal: return DT.accentText
         case .work: return .orange
         case .rest: return .teal
         case .warn: return .red

@@ -1,6 +1,7 @@
 import SwiftUI
 
-// MARK: - Barvy podle typu dne (shodné s webovou appkou)
+// MARK: - Barvy podle typu dne (zachováno — slouží k rychlému rozlišení typu dne
+// v historii/hero kartě, redesign mění jen zbytek palety)
 
 extension DayType {
     var color: Color {
@@ -14,17 +15,17 @@ extension DayType {
     }
 }
 
-// MARK: - Karta (odpovídá .card v style.css)
+// MARK: - Karta
 
 struct CardBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(18)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(DT.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color(.separator).opacity(0.25), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(DT.line, lineWidth: 1)
             )
     }
 }
@@ -34,21 +35,30 @@ extension View {
 }
 
 // MARK: - Badge (pilulka)
+//
+// Výchozí (plná) varianta = akcentní výplň + tmavý text, stejně v obou režimech.
+// `outline` = tichá varianta na `surfaceRaised` pro sekundární/day-type badge, kde
+// barva nese vlastní význam (`DayType.color`) a nemá smysl ji přebíjet akcentem.
 
 struct BadgeView: View {
     let text: String
-    var color: Color = .accentColor
+    var color: Color = DT.accent
     var outline: Bool = false
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .bold))
+            .trackedUppercase(0.3)
+            .font(.system(size: 11, weight: .heavy))
             .lineLimit(1)
-            .padding(.horizontal, 11)
-            .padding(.vertical, 5)
-            .background(outline ? Color(.tertiarySystemBackground) : color)
-            .foregroundColor(outline ? .primary : .white)
-            .clipShape(Capsule())
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(outline ? DT.surfaceRaised : color)
+            .foregroundColor(outline ? DT.fgMuted : DT.accentInk)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(outline ? DT.line : .clear, lineWidth: 1)
+            )
     }
 }
 
@@ -65,22 +75,23 @@ struct SegmentedPicker<T: Hashable>: View {
                     selection = opt.value
                 } label: {
                     Text(opt.label)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.65)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, 2)
                         .padding(.vertical, 8)
-                        .background(selection == opt.value ? Color(.systemBackground) : Color.clear)
-                        .foregroundColor(selection == opt.value ? .primary : .secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(selection == opt.value ? DT.surfaceRaised : Color.clear)
+                        .foregroundColor(selection == opt.value ? DT.fg : DT.fgMuted)
+                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(3)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(DT.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(DT.line, lineWidth: 1))
     }
 }
 
@@ -95,24 +106,27 @@ struct ChipButton: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 13, weight: .bold))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(backgroundColor)
                 .foregroundColor(foregroundColor)
-                .clipShape(Capsule())
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .overlay(
-                    Capsule().stroke(isActive ? (danger ? Color.red : Color.accentColor) : .clear, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(danger && isActive ? DT.danger : .clear, lineWidth: 1.5)
                 )
         }
         .buttonStyle(.plain)
     }
 
     private var backgroundColor: Color {
-        isActive ? (danger ? Color.red.opacity(0.14) : Color.accentColor.opacity(0.14)) : Color(.secondarySystemBackground)
+        if danger { return isActive ? DT.danger.opacity(0.16) : DT.surface }
+        return isActive ? DT.accent : DT.surface
     }
     private var foregroundColor: Color {
-        isActive ? (danger ? .red : .accentColor) : .secondary
+        if danger { return isActive ? DT.danger : DT.fgMuted }
+        return isActive ? DT.accentInk : DT.fgMuted
     }
 }
 
@@ -126,20 +140,74 @@ struct ChipGrid<Content: View>: View {
     }
 }
 
+// MARK: - Tlačítka
+
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .heavy))
+            .trackedUppercase(0.2)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(DT.accent.opacity(configuration.isPressed ? 0.75 : 1))
+            .foregroundColor(DT.accentInk)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+}
+
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .heavy))
+            .trackedUppercase(0.2)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(DT.surface.opacity(configuration.isPressed ? 0.7 : 1))
+            .foregroundColor(DT.fg)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(DT.line, lineWidth: 1))
+    }
+}
+
+extension ButtonStyle where Self == PrimaryButtonStyle {
+    static var dtPrimary: PrimaryButtonStyle { PrimaryButtonStyle() }
+}
+
+extension ButtonStyle where Self == SecondaryButtonStyle {
+    static var dtSecondary: SecondaryButtonStyle { SecondaryButtonStyle() }
+}
+
+struct DestructiveButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .heavy))
+            .trackedUppercase(0.2)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(DT.danger.opacity(configuration.isPressed ? 0.12 : 0.16))
+            .foregroundColor(DT.danger)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+}
+
+extension ButtonStyle where Self == DestructiveButtonStyle {
+    static var dtDestructive: DestructiveButtonStyle { DestructiveButtonStyle() }
+}
+
 // MARK: - Toast
 
 struct ToastView: View {
     let message: String
     var body: some View {
         Text(message)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: 14, weight: .bold))
             .foregroundColor(.white)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
-            .background(Color.black.opacity(0.88))
+            .background(Color.black.opacity(0.9))
             .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+            .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
             .padding(.horizontal, 40)
     }
 }
@@ -154,7 +222,7 @@ struct EmptyStateView: View {
             Text(icon).font(.system(size: 40))
             Text(text)
                 .font(.system(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundColor(DT.fgMuted)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

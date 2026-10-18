@@ -52,11 +52,12 @@ struct RootTabView: View {
                 } label: {
                     VStack(spacing: 3) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 21, weight: selection == idx ? .semibold : .regular))
+                            .font(.system(size: 21, weight: selection == idx ? .bold : .regular))
                         Text(tab.title)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 9.5, weight: .heavy))
+                            .trackedUppercase(0.2)
                     }
-                    .foregroundColor(selection == idx ? .accentColor : .secondary)
+                    .foregroundColor(selection == idx ? DT.accentText : DT.fgFaint)
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
@@ -64,9 +65,10 @@ struct RootTabView: View {
         }
         .padding(.top, 8)
         .padding(.bottom, 4)
-        .background(.bar)
+        .background(DT.barBg)
+        .background(.ultraThinMaterial)
         .overlay(alignment: .top) {
-            Divider()
+            Divider().background(DT.line)
         }
     }
 }
