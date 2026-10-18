@@ -44,7 +44,7 @@ struct LibraryView: View {
                 .padding(16)
             }
             .navigationTitle("Cviky")
-            .background(Color(.systemGroupedBackground))
+            .background(DT.bg)
             .searchable(text: $searchText, prompt: "Hledat cvik")
             .sheet(item: $selectedExercise) { ExerciseDetailView(exercise: $0) }
         }
@@ -54,16 +54,16 @@ struct LibraryView: View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
                 Text(ex.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(DT.fg)
                 Text("\(ex.pattern.label) · \(ex.category.label)")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DT.fgMuted)
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.system(size: 12))
-                .foregroundColor(Color(.tertiaryLabel))
+                .foregroundColor(DT.fgFaint)
         }
         .padding(.vertical, 4)
     }

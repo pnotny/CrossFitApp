@@ -19,8 +19,9 @@ struct HistoryView: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Historie tréninků")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 12, weight: .heavy))
+                            .trackedUppercase(0.3)
+                            .foregroundColor(DT.fgMuted)
 
                         if store.history.isEmpty {
                             EmptyStateView(icon: "📅", text: "Zatím žádné uložené tréninky.")
@@ -40,7 +41,7 @@ struct HistoryView: View {
                 .padding(16)
             }
             .navigationTitle("Historie")
-            .background(Color(.systemGroupedBackground))
+            .background(DT.bg)
             .sheet(item: $selectedWorkout) { HistoryWorkoutDetailView(workout: $0) }
             .sheet(isPresented: $showAddPr) { AddPrSheetView() }
         }
@@ -50,11 +51,13 @@ struct HistoryView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Osobní rekordy (1RM)")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 12, weight: .heavy))
+                    .trackedUppercase(0.3)
+                    .foregroundColor(DT.fgMuted)
                 Spacer()
                 Button { showAddPr = true } label: {
                     Image(systemName: "plus.circle.fill")
+                        .foregroundColor(DT.accentText)
                 }
             }
 
@@ -69,25 +72,25 @@ struct HistoryView: View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
                 Text(workout.date)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(DT.fg)
                 HStack(spacing: 6) {
                     BadgeView(text: workout.dayTypeLabel, color: workout.dayType.color)
                     if let rpe = workout.rpe {
                         Text("RPE \(rpe)")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DT.fgMuted)
                     }
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(workout.totalMinutes) min").font(.system(size: 13, weight: .semibold))
-                Text("\(workout.estKcal) kcal").font(.system(size: 11)).foregroundColor(.secondary)
+                Text("\(workout.totalMinutes) min").font(.system(size: 13, weight: .bold)).foregroundColor(DT.fg)
+                Text("\(workout.estKcal) kcal").font(.system(size: 11)).foregroundColor(DT.fgMuted)
             }
             Image(systemName: "chevron.right")
                 .font(.system(size: 12))
-                .foregroundColor(Color(.tertiaryLabel))
+                .foregroundColor(DT.fgFaint)
         }
         .padding(.vertical, 4)
     }
@@ -103,10 +106,10 @@ private struct PrRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 13, weight: .semibold))
+                Text(label).font(.system(size: 13, weight: .bold)).foregroundColor(DT.fg)
                 Text(current.map { "\(Int($0)) kg" } ?? "—")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DT.fgMuted)
             }
             Spacer()
             SparklineView(values: entries.map { $0.value })
@@ -132,7 +135,7 @@ private struct SparklineView: View {
                         if idx == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
                     }
                 }
-                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                .stroke(DT.accentText, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             } else {
                 Color.clear
             }
@@ -161,7 +164,7 @@ struct HistoryWorkoutDetailView: View {
                     }
                     Text("\(workout.totalMinutes) min · \(workout.estKcal) kcal")
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.fgMuted)
 
                     HStack(spacing: 10) {
                         Button {
@@ -172,9 +175,8 @@ struct HistoryWorkoutDetailView: View {
                             }
                         } label: {
                             Label("Sdílet", systemImage: "square.and.arrow.up")
-                                .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.dtSecondary)
 
                         if store.stravaAuth?.isConnected == true {
                             Button {
@@ -189,28 +191,31 @@ struct HistoryWorkoutDetailView: View {
                                     Text(workout.stravaActivityId != nil ? "Znovu na Strava" : "Na Strava")
                                 }
                                 .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color(red: 0.98, green: 0.31, blue: 0.09))
+                            .background(Color(red: 0.98, green: 0.31, blue: 0.09))
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                             .disabled(exporting)
+                            .font(.system(size: 13, weight: .heavy))
+                            .trackedUppercase(0.2)
                         }
                     }
-                    .font(.system(size: 14, weight: .semibold))
 
                     ForEach(Array(workout.blocks.enumerated()), id: \.offset) { _, block in
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(block.title).font(.system(size: 15, weight: .bold))
+                                Text(block.title).font(.system(size: 15, weight: .heavy)).foregroundColor(DT.fg)
                                 Spacer()
                                 BadgeView(text: block.formatLabel, outline: true)
                             }
-                            Text(block.scheme).font(.system(size: 12)).foregroundColor(.secondary)
+                            Text(block.scheme).font(.system(size: 12)).foregroundColor(DT.fgMuted)
                             ForEach(block.exercises, id: \.exerciseId) { ex in
                                 HStack {
-                                    Text(ex.name).font(.system(size: 13, weight: .semibold))
+                                    Text(ex.name).font(.system(size: 13, weight: .bold)).foregroundColor(DT.fg)
                                     Spacer()
                                     if !ex.reps.isEmpty {
-                                        Text(ex.reps).font(.system(size: 12)).foregroundColor(.secondary)
+                                        Text(ex.reps).font(.system(size: 12, weight: .semibold)).foregroundColor(DT.accentText)
                                     }
                                 }
                             }
@@ -220,6 +225,7 @@ struct HistoryWorkoutDetailView: View {
                 }
                 .padding(20)
             }
+            .background(DT.bg)
             .navigationTitle(workout.date)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -252,6 +258,8 @@ struct AddPrSheetView: View {
                 TextField("Váha (kg)", text: $valueText)
                     .keyboardType(.decimalPad)
             }
+            .scrollContentBackground(.hidden)
+            .background(DT.bg)
             .navigationTitle("Nový PR")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

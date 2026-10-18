@@ -17,7 +17,8 @@ struct ExerciseDetailView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(exercise.name)
-                            .font(.system(size: 22, weight: .bold))
+                            .font(DF.display(22, weight: .heavy))
+                            .foregroundColor(DT.fg)
                         HStack(spacing: 6) {
                             BadgeView(text: exercise.category.label, outline: true)
                             BadgeView(text: exercise.pattern.label, outline: true)
@@ -45,6 +46,7 @@ struct ExerciseDetailView: View {
                 }
                 .padding(20)
             }
+            .background(DT.bg)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -57,11 +59,13 @@ struct ExerciseDetailView: View {
     @ViewBuilder
     private func detailSection(title: String, text: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
+            Text(title)
+                .trackedUppercase(0.3)
+                .font(.system(size: 11, weight: .heavy))
+                .foregroundColor(DT.fgMuted)
             Text(text)
                 .font(.system(size: 15))
+                .foregroundColor(DT.fg)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -69,9 +73,10 @@ struct ExerciseDetailView: View {
     @ViewBuilder
     private func detailListSection(title: String, items: [String], symbol: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
+            Text(title)
+                .trackedUppercase(0.3)
+                .font(.system(size: 11, weight: .heavy))
+                .foregroundColor(DT.fgMuted)
             ForEach(items, id: \.self) { item in
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: symbol)
@@ -80,6 +85,7 @@ struct ExerciseDetailView: View {
                         .padding(.top, 3)
                     Text(item)
                         .font(.system(size: 14))
+                        .foregroundColor(DT.fg)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

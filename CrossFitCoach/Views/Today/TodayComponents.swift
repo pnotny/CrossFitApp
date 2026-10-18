@@ -20,18 +20,19 @@ struct WeekStripView: View {
                 } label: {
                     VStack(spacing: 4) {
                         Text(Self.dayLabels[idx])
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
+                            .trackedUppercase(0.2)
                         Text(date.split(separator: "-").last.map(String.init) ?? "")
-                            .font(.system(size: 14, weight: .heavy))
+                            .font(DF.display(15, weight: .heavy))
                         Circle()
-                            .fill(hasSaved ? Color.accentColor : .clear)
-                            .frame(width: 5, height: 5)
+                            .fill(hasSaved ? (isSelected ? DT.accentInk : DT.accentText) : .clear)
+                            .frame(width: 4, height: 4)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
-                    .foregroundColor(isSelected ? .white : (isToday ? .accentColor : .primary))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(.vertical, 9)
+                    .background(isSelected ? DT.accent : DT.surface)
+                    .foregroundColor(isSelected ? DT.accentInk : (isToday ? DT.accentText : DT.fg))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -57,55 +58,63 @@ struct WorkoutHeroCard: View {
                 }
             }
 
-            HStack(spacing: 18) {
+            HStack(spacing: 22) {
                 statColumn(value: "\(workout.totalMinutes)", unit: "min")
                 statColumn(value: "\(workout.estKcal)", unit: "kcal")
                 statColumn(value: "\(workout.blocks.count)", unit: "bloky")
             }
+            .padding(.vertical, 2)
 
             HStack(spacing: 10) {
                 Button {
                     store.regenerate()
                 } label: {
                     Label("Přegenerovat", systemImage: "arrow.triangle.2.circlepath")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.dtSecondary)
 
                 Button(action: onShare) {
                     Label("Sdílet", systemImage: "square.and.arrow.up")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.dtSecondary)
             }
-            .font(.system(size: 14, weight: .semibold))
 
-            HStack(spacing: 10) {
-                if store.currentWorkoutSaved {
-                    Button(role: .destructive) {
-                        store.deleteCurrentWorkout()
-                    } label: {
-                        Text("Smazat uložený trénink").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                } else {
-                    Button {
-                        store.saveCurrentWorkout()
-                    } label: {
-                        Text("Uložit do historie").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
+            if store.currentWorkoutSaved {
+                Button(role: .destructive) {
+                    store.deleteCurrentWorkout()
+                } label: {
+                    Text("Smazat uložený trénink")
                 }
+                .buttonStyle(.dtDestructive)
+            } else {
+                Button {
+                    store.saveCurrentWorkout()
+                } label: {
+                    Text("Uložit trénink")
+                }
+                .buttonStyle(.dtPrimary)
             }
-            .font(.system(size: 14, weight: .semibold))
         }
-        .cardStyle()
+        .padding(20)
+        .background(DT.surfaceRaised)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            HStack(spacing: 0) {
+                DT.accent.frame(width: 3)
+                Spacer()
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        )
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(DT.line, lineWidth: 1))
     }
 
     private func statColumn(value: String, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 20, weight: .heavy))
-            Text(unit).font(.system(size: 11, weight: .semibold)).foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value).font(DF.display(26, weight: .heavy))
+            Text(unit)
+                .font(.system(size: 10, weight: .heavy))
+                .trackedUppercase(0.4)
+                .foregroundColor(DT.fgFaint)
         }
     }
 }
@@ -119,8 +128,9 @@ struct DurationPickerCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Délka tréninku")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.secondary)
+                .font(.system(size: 12, weight: .heavy))
+                .trackedUppercase(0.3)
+                .foregroundColor(DT.fgMuted)
             HStack(spacing: 8) {
                 ForEach(options, id: \.self) { minutes in
                     ChipButton(label: "\(minutes) min", isActive: store.profile.timeAvailable == minutes) {
@@ -142,22 +152,23 @@ struct RpeCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Jak náročný byl trénink? (RPE)")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.secondary)
+                .font(.system(size: 12, weight: .heavy))
+                .trackedUppercase(0.3)
+                .foregroundColor(DT.fgMuted)
             Text("Pomáhá to autoregulaci zátěže v dalších trénincích.")
                 .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                .foregroundColor(DT.fgMuted)
             HStack(spacing: 6) {
                 ForEach(1...10, id: \.self) { value in
                     Button {
                         store.saveRpe(value)
                     } label: {
                         Text("\(value)")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 13, weight: .heavy))
                             .frame(width: 26, height: 26)
-                            .background(currentRpe == value ? Color.accentColor : Color(.secondarySystemBackground))
-                            .foregroundColor(currentRpe == value ? .white : .primary)
-                            .clipShape(Circle())
+                            .background(currentRpe == value ? DT.accent : DT.surfaceRaised)
+                            .foregroundColor(currentRpe == value ? DT.accentInk : DT.fg)
+                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
@@ -182,37 +193,38 @@ struct BlockCardView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(block.title)
-                        .font(.system(size: 16, weight: .bold))
-                    HStack(spacing: 6) {
-                        BadgeView(text: block.formatLabel, color: .accentColor)
-                        Text(block.scheme)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
-                    }
+                        .font(.system(size: 15, weight: .heavy))
+                    Text("\(block.formatLabel) · \(block.scheme)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(DT.fgMuted)
                     if let cap = block.timeCap {
                         Text(cap)
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DT.fgMuted)
                     }
                 }
                 Spacer()
                 if block.format != .rest {
                     Button(action: onTimer) {
                         Image(systemName: "timer")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(DT.accentText)
+                            .frame(width: 34, height: 34)
+                            .background(DT.surfaceRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(DT.line, lineWidth: 1))
                     }
-                    .buttonStyle(.bordered)
-                    .clipShape(Circle())
+                    .buttonStyle(.plain)
                 }
             }
 
             if !block.notes.isEmpty {
                 Text(block.notes)
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DT.fgMuted)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.accentColor.opacity(0.08))
+                    .background(DT.accent.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
@@ -264,23 +276,23 @@ struct ExerciseRowView: View {
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(exercise.name)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(DT.fg)
                     HStack(spacing: 6) {
                         if !exercise.reps.isEmpty {
                             Text(exercise.reps)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12, weight: .heavy))
+                                .foregroundColor(DT.accentText)
                         }
                         if !weightText.isEmpty {
                             Text(weightText)
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DT.fgMuted)
                         }
                         if !loadSourceText.isEmpty {
                             Text(loadSourceText)
                                 .font(.system(size: 11))
-                                .foregroundColor(Color(.tertiaryLabel))
+                                .foregroundColor(DT.fgFaint)
                         }
                     }
                 }
@@ -289,11 +301,11 @@ struct ExerciseRowView: View {
             Spacer()
             Button(action: onSwap) {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .padding(8)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(Circle())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DT.fgFaint)
+                    .frame(width: 26, height: 26)
+                    .background(DT.surfaceRaised)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
         }

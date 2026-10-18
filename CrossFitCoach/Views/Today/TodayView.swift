@@ -57,9 +57,10 @@ struct TodayView: View {
                             }
                             .background(Color(red: 0.98, green: 0.31, blue: 0.09))
                             .foregroundColor(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                             .disabled(store.stravaExportInFlight || !store.currentWorkoutSaved)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 13, weight: .heavy))
+                            .trackedUppercase(0.2)
                         }
                     } else {
                         EmptyStateView(icon: "🏋️", text: "Trénink se připravuje…")
@@ -68,7 +69,7 @@ struct TodayView: View {
                 .padding(16)
             }
             .navigationTitle("Dnes")
-            .background(Color(.systemGroupedBackground))
+            .background(DT.bg)
         }
         .sheet(item: $selectedExercise) { ex in
             ExerciseDetailView(exercise: ex)
