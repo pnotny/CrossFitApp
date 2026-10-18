@@ -38,7 +38,13 @@ final class AppStore: ObservableObject {
         stravaAuth = storage.getStravaAuth()
         prLog = storage.getPrLog()
         let savedServerUrl = storage.getAuthServerUrl()
-        authServerUrl = savedServerUrl.isEmpty ? (storage.getStravaAuth()?.workerUrl ?? "") : savedServerUrl
+        if !savedServerUrl.isEmpty {
+            authServerUrl = savedServerUrl
+        } else if let stravaUrl = storage.getStravaAuth()?.workerUrl, !stravaUrl.isEmpty {
+            authServerUrl = stravaUrl
+        } else {
+            authServerUrl = AuthService.defaultServerURL
+        }
         loadOrGenerateWorkout()
     }
 

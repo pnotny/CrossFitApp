@@ -1,14 +1,15 @@
 import SwiftUI
 
 /// Povinná přihlašovací brána — appka se nedá použít bez platné session.
-/// Stejný Worker backend obsluhuje přihlašování i Strava export, proto appka
-/// žádá i adresu serveru (jen při prvním přihlášení/registraci).
+/// Adresa Workeru má pevně danou výchozí hodnotu (AuthService.defaultServerURL),
+/// takže ji běžně nikdo nezadává — jde změnit jen přes skryté „Pokročilé" pro
+/// případ, že by se Worker musel někdy přesunout na jinou adresu.
 struct LoginView: View {
     @EnvironmentObject var store: AppStore
     @State private var mode: Mode = .login
-    @State private var serverUrl: String = ""
     @State private var username: String = ""
     @State private var password: String = ""
+    @State private var showServerField = false
 
     private enum Mode: Hashable {
         case login, register
@@ -30,11 +31,12 @@ struct LoginView: View {
                 SegmentedPicker(options: [(Mode.login, "Přihlásit"), (Mode.register, "Registrovat")], selection: $mode)
 
                 VStack(alignment: .leading, spacing: 12) {
-                    field(label: "Adresa serveru", text: $serverUrl, placeholder: "https://crossfit-coach-strava-proxy.xxx.workers.dev", keyboard: .URL)
                     field(label: "Uživatelské jméno", text: $username, placeholder: "admin")
                     secureField(label: "Heslo", text: $password)
                 }
                 .cardStyle()
+
+                advancedServerSection
 
                 if let error = store.authError {
                     Text(error)
@@ -57,17 +59,36 @@ struct LoginView: View {
             .padding(16)
         }
         .background(DT.bg)
-        .onAppear { serverUrl = store.authServerUrl }
+    }
+
+    private var advancedServerSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { showServerField.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Pokročilé: adresa serveru")
+                    Image(systemName: showServerField ? "chevron.up" : "chevron.down")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(DT.fgMuted)
+            }
+            .buttonStyle(.plain)
+
+            if showServerField {
+                field(label: "Adresa serveru", text: $store.authServerUrl, placeholder: "https://crossfit-coach-strava-proxy.xxx.workers.dev", keyboard: .URL)
+            }
+        }
     }
 
     private var canSubmit: Bool {
-        !serverUrl.trimmingCharacters(in: .whitespaces).isEmpty
+        !store.authServerUrl.trimmingCharacters(in: .whitespaces).isEmpty
             && !username.trimmingCharacters(in: .whitespaces).isEmpty
             && !password.isEmpty
     }
 
     private func submit() async {
-        let server = serverUrl.trimmingCharacters(in: .whitespaces)
+        let server = store.authServerUrl.trimmingCharacters(in: .whitespaces)
         let user = username.trimmingCharacters(in: .whitespaces)
         switch mode {
         case .login:

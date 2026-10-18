@@ -12,6 +12,10 @@ struct AuthUser: Codable, Equatable {
 final class AuthService {
     static let shared = AuthService()
 
+    /// URL nasazeného Cloudflare Workeru — appka ji používá jako výchozí, takže
+    /// ji uživatel při přihlášení nemusí ručně zadávat.
+    static let defaultServerURL = "https://crossfit-coach-strava-proxy.crosfitcoach.workers.dev"
+
     enum AuthError: LocalizedError {
         case invalidURL
         case server(String)
