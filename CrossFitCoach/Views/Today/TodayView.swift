@@ -16,7 +16,7 @@ struct TodayView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Dnes")
+                Text(store.t("today_title"))
                     .font(DF.display(28))
                     .foregroundColor(DT.fg)
 
@@ -53,7 +53,7 @@ struct TodayView: View {
                                     if store.stravaExportInFlight {
                                         ProgressView().tint(.white)
                                     }
-                                    Text(workout.stravaActivityId != nil ? "Znovu odeslat na Strava" : "Odeslat na Strava")
+                                    Text(workout.stravaActivityId != nil ? store.t("resend_to_strava") : store.t("send_to_strava"))
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 13)
@@ -66,7 +66,7 @@ struct TodayView: View {
                             .trackedUppercase(0.2)
                         }
                 } else {
-                    EmptyStateView(icon: "🏋️", text: "Trénink se připravuje…")
+                    EmptyStateView(icon: "🏋️", text: store.t("workout_preparing"))
                 }
             }
             .padding(16)
@@ -99,10 +99,10 @@ struct TodayView: View {
     }
 
     private func presentShare(for workout: Workout) {
-        if let image = ShareCardRenderer.render(workout: workout) {
+        if let image = ShareCardRenderer.render(workout: workout, language: store.language) {
             shareItem = ShareImageItem(image: image)
         } else {
-            store.toast("Export karty se nepodařil")
+            store.toast(store.t("card_export_failed"))
         }
     }
 }

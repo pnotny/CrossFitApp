@@ -2,13 +2,36 @@ import SwiftUI
 
 /// Detail cviku s přepínáním úrovní — použito z Today (info tlačítko) i z Library.
 struct ExerciseDetailView: View {
+    @EnvironmentObject var store: AppStore
     let exercise: Exercise
     @State private var tier: LevelTier
     @Environment(\.dismiss) private var dismiss
+    /// Cache originál (česky) → AI překlad (anglicky), jen pro tuhle obrazovku —
+    /// dlouhodobá cache je v AppStore.translateTexts, tohle jen drží výsledek pro UI.
+    @State private var translations: [String: String] = [:]
 
     init(exercise: Exercise, initialTier: LevelTier = .rx) {
         self.exercise = exercise
         _tier = State(initialValue: initialTier)
+    }
+
+    /// Anglický překlad daného (českého) textu, pokud appka běží v angličtině
+    /// a překlad se podařilo načíst — jinak originál beze změny.
+    private func tr(_ cs: String) -> String {
+        guard store.language == .en else { return cs }
+        return translations[cs] ?? cs
+    }
+
+    private func loadTranslationsIfNeeded() async {
+        guard store.language == .en else { return }
+        let info = exercise.levels.info(for: tier)
+        let candidates = [info.desc, info.criteria, exercise.muscles.joined(separator: ", ")] + exercise.cues + exercise.mistakes
+        let missing = candidates.filter { !$0.isEmpty && translations[$0] == nil }
+        guard !missing.isEmpty else { return }
+        let results = await store.translateTexts(missing)
+        for (original, translated) in zip(missing, results) {
+            translations[original] = translated
+        }
     }
 
     var body: some View {
@@ -20,17 +43,17 @@ struct ExerciseDetailView: View {
                             .font(DF.display(22, weight: .heavy))
                             .foregroundColor(DT.fg)
                         HStack(spacing: 6) {
-                            BadgeView(text: exercise.category.label, outline: true)
-                            BadgeView(text: exercise.pattern.label, outline: true)
+                            BadgeView(text: exercise.category.label(store.language), outline: true)
+                            BadgeView(text: exercise.pattern.label(store.language), outline: true)
                         }
                         ChipGrid {
                             ForEach(exercise.equipment, id: \.self) { eq in
-                                BadgeView(text: eq.label, outline: true)
+                                BadgeView(text: eq.label(store.language), outline: true)
                             }
                         }
                     }
 
-                    Picker("Úroveň", selection: $tier) {
+                    Picker(store.t("level"), selection: $tier) {
                         ForEach(LevelTier.allCases, id: \.self) { t in
                             Text(t.label).tag(t)
                         }
@@ -38,11 +61,11 @@ struct ExerciseDetailView: View {
                     .pickerStyle(.segmented)
 
                     let info = exercise.levels.info(for: tier)
-                    detailSection(title: "Popis úrovně", text: info.desc)
-                    detailSection(title: "Kritérium postupu na další úroveň", text: info.criteria)
-                    detailSection(title: "Zapojené svaly", text: exercise.muscles.joined(separator: ", "))
-                    detailListSection(title: "Coaching cues", items: exercise.cues, symbol: "checkmark", color: .green)
-                    detailListSection(title: "Časté chyby", items: exercise.mistakes, symbol: "xmark", color: .red)
+                    detailSection(title: store.t("level_description"), text: tr(info.desc))
+                    detailSection(title: store.t("next_level_criteria"), text: tr(info.criteria))
+                    detailSection(title: store.t("muscles_worked"), text: tr(exercise.muscles.joined(separator: ", ")))
+                    detailListSection(title: store.t("coaching_cues"), items: exercise.cues.map(tr), symbol: "checkmark", color: .green)
+                    detailListSection(title: store.t("common_mistakes"), items: exercise.mistakes.map(tr), symbol: "xmark", color: .red)
                 }
                 .padding(20)
             }
@@ -50,9 +73,11 @@ struct ExerciseDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Hotovo") { dismiss() }
+                    Button(store.t("done")) { dismiss() }
                 }
             }
+            .task(id: tier) { await loadTranslationsIfNeeded() }
+            .onChange(of: store.language) { _ in Task { await loadTranslationsIfNeeded() } }
         }
     }
 

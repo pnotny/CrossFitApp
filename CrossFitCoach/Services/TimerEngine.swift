@@ -41,9 +41,15 @@ final class TimerEngine: ObservableObject {
     private var config: TimerConfig?
     private var elapsed: Int = 0
     private var timer: Timer?
+    private var language: AppLanguage = .cs
 
-    func configure(_ config: TimerConfig) {
+    /// Krátký lokální helper místo tahání celého `L` slovníku do timer enginu —
+    /// pár frází stopek si vystačí samo.
+    private func t(_ cs: String, _ en: String) -> String { language == .en ? en : cs }
+
+    func configure(_ config: TimerConfig, language: AppLanguage = .cs) {
         self.config = config
+        self.language = language
         reset()
     }
 
@@ -115,9 +121,9 @@ final class TimerEngine: ObservableObject {
             let secIntoMin = elapsed % 60
             let secLeft = elapsed >= totalSec ? 0 : 60 - secIntoMin
             displayText = elapsed >= totalSec ? "00:00" : String(format: "%02d", secLeft)
-            phaseText = elapsed >= totalSec ? "✅ Hotovo" : "Minuta \(minuteIdx + 1) / \(config.durationMin)"
+            phaseText = elapsed >= totalSec ? t("✅ Hotovo", "✅ Done") : "\(t("Minuta", "Minute")) \(minuteIdx + 1) / \(config.durationMin)"
             phaseKind = .normal
-            subText = config.exercises.isEmpty ? "" : "Na řadě: \(config.exercises[minuteIdx % config.exercises.count])"
+            subText = config.exercises.isEmpty ? "" : "\(t("Na řadě", "Up now")): \(config.exercises[minuteIdx % config.exercises.count])"
             if elapsed >= totalSec {
                 if running { play { TimerSound.done() }; stop() }
             } else if running && secIntoMin == 0 && elapsed > 0 {
@@ -130,9 +136,9 @@ final class TimerEngine: ObservableObject {
             let totalSec = max(config.durationMin, 1) * 60
             let left = totalSec - elapsed
             displayText = fmt(left)
-            phaseText = left <= 0 ? "✅ Čas vypršel" : "AMRAP"
+            phaseText = left <= 0 ? t("✅ Čas vypršel", "✅ Time's up") : "AMRAP"
             phaseKind = .normal
-            subText = "Cíl: \(config.durationMin) min"
+            subText = "\(t("Cíl", "Target")): \(config.durationMin) min"
             if left <= 0, running { play { TimerSound.done() }; stop() }
 
         case .forTime, .chipper:
@@ -149,9 +155,9 @@ final class TimerEngine: ObservableObject {
             let totalSec = 8 * cycle
             if elapsed >= totalSec {
                 displayText = "00:00"
-                phaseText = "✅ Hotovo"
+                phaseText = t("✅ Hotovo", "✅ Done")
                 phaseKind = .normal
-                subText = "8/8 kol"
+                subText = t("8/8 kol", "8/8 rounds")
                 if running { play { TimerSound.done() }; stop() }
                 return
             }
@@ -160,17 +166,17 @@ final class TimerEngine: ObservableObject {
             let isWork = posInCycle < 20
             let left = isWork ? 20 - posInCycle : 30 - posInCycle
             displayText = String(format: "%02d", left)
-            phaseText = isWork ? "🔥 PRÁCE" : "😮\u{200D}💨 ODPOČINEK"
+            phaseText = isWork ? t("🔥 PRÁCE", "🔥 WORK") : "😮\u{200D}💨 \(t("ODPOČINEK", "REST"))"
             phaseKind = isWork ? .work : .rest
-            subText = "Kolo \(round) / 8"
+            subText = "\(t("Kolo", "Round")) \(round) / 8"
             if running && left == 1 { play { TimerSound.notify() } }
 
         default:
             let targetSec = config.durationMin * 60
             displayText = fmt(elapsed)
-            phaseText = config.format == .rest ? "ODPOČINEK" : "STOPKY"
+            phaseText = config.format == .rest ? t("ODPOČINEK", "REST") : t("STOPKY", "STOPWATCH")
             phaseKind = .normal
-            subText = targetSec > 0 ? "Cíl: \(fmt(targetSec))" : ""
+            subText = targetSec > 0 ? "\(t("Cíl", "Target")): \(fmt(targetSec))" : ""
             if targetSec > 0 && elapsed == targetSec && running { play { TimerSound.notify() } }
         }
     }

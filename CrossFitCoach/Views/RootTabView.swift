@@ -9,15 +9,15 @@ struct RootTabView: View {
     @State private var selection = 0
 
     private struct Tab {
-        let title: String
+        let titleKey: String
         let icon: String
     }
 
     private static let tabs: [Tab] = [
-        Tab(title: "Dnes", icon: "calendar"),
-        Tab(title: "Historie", icon: "chart.line.uptrend.xyaxis"),
-        Tab(title: "Cviky", icon: "books.vertical"),
-        Tab(title: "Profil", icon: "person.crop.circle"),
+        Tab(titleKey: "tab_today", icon: "calendar"),
+        Tab(titleKey: "tab_history", icon: "chart.line.uptrend.xyaxis"),
+        Tab(titleKey: "tab_library", icon: "books.vertical"),
+        Tab(titleKey: "tab_profile", icon: "person.crop.circle"),
     ]
 
     var body: some View {
@@ -53,7 +53,7 @@ struct RootTabView: View {
                     VStack(spacing: 3) {
                         Image(systemName: tab.icon)
                             .font(.system(size: 21, weight: selection == idx ? .bold : .regular))
-                        Text(tab.title)
+                        Text(store.t(tab.titleKey))
                             .font(.system(size: 9.5, weight: .heavy))
                             .trackedUppercase(0.2)
                     }

@@ -15,6 +15,7 @@ final class AppStore: ObservableObject {
     @Published var editMode: Bool = false
     @Published var stravaAuth: StravaAuth?
     @Published var theme: Storage.ThemeOption
+    @Published var language: AppLanguage
     @Published var toastMessage: String?
     @Published var stravaExportInFlight: Bool = false
     @Published var prLog: [PrEntry]
@@ -40,6 +41,7 @@ final class AppStore: ObservableObject {
         history = storage.getHistory()
         viewDate = DateUtils.todayString()
         theme = storage.getTheme()
+        language = storage.getLanguage()
         stravaAuth = storage.getStravaAuth()
         prLog = storage.getPrLog()
         let savedServerUrl = storage.getAuthServerUrl()
@@ -128,7 +130,7 @@ final class AppStore: ObservableObject {
     /// Volá se po každé lokální změně, co se jinak ukládá do Storage.
     private func syncUp() {
         guard authUser != nil, let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
-        let state = SyncedState(profile: profile, history: history, prLog: prLog, theme: theme, strava: stravaAuth)
+        let state = SyncedState(profile: profile, history: history, prLog: prLog, theme: theme, strava: stravaAuth, language: language)
         let serverUrl = authServerUrl
         Task { await SyncService.shared.push(serverUrl: serverUrl, token: token, state: state) }
     }
@@ -143,6 +145,7 @@ final class AppStore: ObservableObject {
         if let log = state.prLog { prLog = log; storage.replacePrLog(log) }
         if let t = state.theme { theme = t; storage.setTheme(t) }
         if let s = state.strava { stravaAuth = s; storage.saveStravaAuth(s) }
+        if let lang = state.language { language = lang; storage.setLanguage(lang) }
         loadOrGenerateWorkout()
     }
 
@@ -153,7 +156,7 @@ final class AppStore: ObservableObject {
             currentWorkout = saved
             currentWorkoutSaved = true
         } else {
-            currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history)
+            currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
             currentWorkoutSaved = false
         }
         editMode = false
@@ -161,16 +164,16 @@ final class AppStore: ObservableObject {
     }
 
     func regenerate() {
-        currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history)
+        currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
         currentWorkoutSaved = false
-        toast("Trénink přegenerován")
+        toast(t("workout_regenerated"))
         refreshAICoachNotes()
     }
 
     /// Po uložení profilu vždy přegeneruje, aby se nové údaje hned projevily
     /// (i když už pro daný den existuje uložený trénink z historie).
     func regenerateForCurrentProfile() {
-        currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history)
+        currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
         currentWorkoutSaved = false
         editMode = false
         refreshAICoachNotes()
@@ -193,7 +196,7 @@ final class AppStore: ObservableObject {
         let recentRpe = Array(history.compactMap { $0.rpe }.prefix(5))
         do {
             let notes = try await AICoachService.shared.fetchBlockNotes(
-                serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe
+                serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe, language: language
             )
             guard notes.count == workout.blocks.count, currentWorkout?.date == workout.date else { return }
             aiBlockNotes = notes
@@ -206,14 +209,14 @@ final class AppStore: ObservableObject {
         guard let w = currentWorkout else { return }
         history = storage.saveWorkoutToHistory(w)
         currentWorkoutSaved = true
-        toast("Trénink uložen do historie")
+        toast(t("workout_saved_to_history"))
         syncUp()
     }
 
     func deleteCurrentWorkout() {
         history = storage.deleteWorkout(for: viewDate)
         loadOrGenerateWorkout()
-        toast("Trénink smazán")
+        toast(t("workout_deleted"))
         syncUp()
     }
 
@@ -224,7 +227,7 @@ final class AppStore: ObservableObject {
         if date == viewDate {
             loadOrGenerateWorkout()
         }
-        toast("Trénink smazán")
+        toast(t("workout_deleted"))
         syncUp()
     }
 
@@ -236,7 +239,7 @@ final class AppStore: ObservableObject {
         history = storage.saveWorkoutToHistory(w)
         currentWorkout = w
         currentWorkoutSaved = true
-        toast(w.isCompleted ? "Trénink označen jako splněný 💪" : "Splnění zrušeno")
+        toast(w.isCompleted ? t("workout_marked_completed") : t("completion_cleared"))
         syncUp()
     }
 
@@ -246,7 +249,7 @@ final class AppStore: ObservableObject {
         history = storage.saveWorkoutToHistory(w)
         currentWorkout = w
         currentWorkoutSaved = true
-        toast("RPE uloženo — příští trénink se tomu přizpůsobí")
+        toast(t("rpe_saved"))
         syncUp()
     }
 
@@ -284,7 +287,7 @@ final class AppStore: ObservableObject {
             autoregAdj: load?.autoregAdj, cues: newExercise.cues, mistakes: newExercise.mistakes, note: current.note
         )
         currentWorkout = w
-        toast("Cvik vyměněn")
+        toast(t("exercise_swapped"))
     }
 
     func swapCandidates(blockIndex: Int, exerciseIndex: Int) -> [Exercise] {
@@ -304,7 +307,7 @@ final class AppStore: ObservableObject {
         profile = newProfile
         storage.saveProfile(newProfile)
         regenerateForCurrentProfile()
-        toast("Profil uložen")
+        toast(t("profile_saved"))
         syncUp()
     }
 
@@ -312,7 +315,7 @@ final class AppStore: ObservableObject {
         profile = .testProfile
         storage.saveProfile(profile)
         regenerateForCurrentProfile()
-        toast("Testovací profil načten a uložen")
+        toast(t("test_profile_loaded"))
         syncUp()
     }
 
@@ -322,7 +325,7 @@ final class AppStore: ObservableObject {
         prLog = storage.addPrEntry(PrEntry(lift: lift, value: value, date: date))
         profile.oneRM[lift] = value
         storage.saveProfile(profile)
-        toast("PR uložen")
+        toast(t("pr_saved"))
         syncUp()
     }
 
@@ -337,10 +340,10 @@ final class AppStore: ObservableObject {
                 case .success(let auth):
                     self.storage.saveStravaAuth(auth)
                     self.stravaAuth = auth
-                    self.toast("Strava připojena 🎉")
+                    self.toast(self.t("strava_connected"))
                     self.syncUp()
                 case .failure(let error):
-                    self.toast("Připojení Strava selhalo: \(error.localizedDescription)")
+                    self.toast("\(self.t("strava_connect_failed")): \(error.localizedDescription)")
                 }
             }
         }
@@ -349,14 +352,14 @@ final class AppStore: ObservableObject {
     func disconnectStrava() {
         storage.clearStravaAuth()
         stravaAuth = storage.getStravaAuth()
-        toast("Strava odpojena")
+        toast(t("strava_disconnected"))
         syncUp()
     }
 
     @discardableResult
     func exportCurrentWorkoutToStrava() async -> Bool {
         guard let w = currentWorkout else {
-            toast("Nejdřív vygeneruj trénink")
+            toast(t("generate_workout_first"))
             return false
         }
         return await exportWorkoutToStrava(w)
@@ -367,7 +370,7 @@ final class AppStore: ObservableObject {
     @discardableResult
     func exportWorkoutToStrava(_ workout: Workout) async -> Bool {
         guard let auth = stravaAuth, auth.isConnected, let refreshToken = auth.refreshToken else {
-            toast("Nejdřív připoj Strava v Profilu")
+            toast(t("connect_strava_first"))
             return false
         }
         stravaExportInFlight = true
@@ -387,11 +390,11 @@ final class AppStore: ObservableObject {
                 currentWorkout = updated
                 currentWorkoutSaved = true
             }
-            toast("Odesláno na Strava 🎉")
+            toast(t("sent_to_strava"))
             syncUp()
             return true
         } catch {
-            toast("Export na Strava selhal: \(error.localizedDescription)")
+            toast("\(t("strava_export_failed")): \(error.localizedDescription)")
             return false
         }
     }
@@ -402,8 +405,8 @@ final class AppStore: ObservableObject {
         let next: Storage.ThemeOption = theme == .auto ? .dark : (theme == .dark ? .light : .auto)
         theme = next
         storage.setTheme(next)
-        let label = next == .auto ? "Automaticky" : (next == .dark ? "Tmavý" : "Světlý")
-        toast("Motiv: \(label)")
+        let label = next == .auto ? t("theme_auto") : (next == .dark ? t("theme_dark") : t("theme_light"))
+        toast("\(t("theme")): \(label)")
         syncUp()
     }
 
@@ -414,6 +417,34 @@ final class AppStore: ObservableObject {
         case .dark: return .dark
         }
     }
+
+    // MARK: AI překlad (cviky — cues/mistakes/svaly)
+
+    /// Vrátí anglický překlad pro každý vstupní (český) text, s lokální cache —
+    /// stejný text se tak přes AI posílá jen jednou za appku, ne při každém zobrazení.
+    /// Tiše selže na originál (česky), pokud AI/síť nejsou dostupné.
+    func translateTexts(_ texts: [String]) async -> [String] {
+        guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty, !texts.isEmpty else { return texts }
+        var cache = storage.getTranslationCache()
+        let missing = Array(Set(texts.filter { !$0.isEmpty && cache[$0] == nil }))
+        if !missing.isEmpty, let fetched = try? await AICoachService.shared.translate(serverUrl: authServerUrl, token: token, texts: missing), fetched.count == missing.count {
+            for (original, translated) in zip(missing, fetched) { cache[original] = translated }
+            storage.setTranslationCache(cache)
+        }
+        return texts.map { cache[$0] ?? $0 }
+    }
+
+    // MARK: Jazyk
+
+    func cycleLanguage() {
+        language = language == .cs ? .en : .cs
+        storage.setLanguage(language)
+        regenerateForCurrentProfile()
+        syncUp()
+    }
+
+    /// Zkratka pro statické UI texty — `L.t(key, language)`.
+    func t(_ key: String) -> String { L.t(key, language) }
 
     // MARK: Toast
 

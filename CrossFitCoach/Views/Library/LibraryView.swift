@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LibraryView: View {
+    @EnvironmentObject var store: AppStore
     @State private var searchText = ""
     @State private var categoryFilter: MovementCategory?
     @State private var selectedExercise: Exercise?
@@ -15,15 +16,15 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Cviky")
+                Text(store.t("library_title"))
                     .font(DF.display(28))
                     .foregroundColor(DT.fg)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ChipButton(label: "Vše", isActive: categoryFilter == nil) { categoryFilter = nil }
+                        ChipButton(label: store.t("all"), isActive: categoryFilter == nil) { categoryFilter = nil }
                         ForEach(MovementCategory.allCases, id: \.self) { cat in
-                            ChipButton(label: cat.label, isActive: categoryFilter == cat) {
+                            ChipButton(label: cat.label(store.language), isActive: categoryFilter == cat) {
                                 categoryFilter = categoryFilter == cat ? nil : cat
                             }
                         }
@@ -33,7 +34,7 @@ struct LibraryView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(DT.fgFaint)
-                    TextField("Hledat cvik", text: $searchText)
+                    TextField(store.t("search_exercise"), text: $searchText)
                         .foregroundColor(DT.fg)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
@@ -52,7 +53,7 @@ struct LibraryView: View {
                 .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(DT.line, lineWidth: 1))
 
                 if filtered.isEmpty {
-                    EmptyStateView(icon: "🔍", text: "Žádné cviky neodpovídají filtru.")
+                    EmptyStateView(icon: "🔍", text: store.t("no_exercises_match"))
                 } else {
                     VStack(spacing: 8) {
                         ForEach(filtered) { ex in
@@ -77,7 +78,7 @@ struct LibraryView: View {
                 Text(ex.name)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(DT.fg)
-                Text("\(ex.pattern.label) · \(ex.category.label)")
+                Text("\(ex.pattern.label(store.language)) · \(ex.category.label(store.language))")
                     .font(.system(size: 12))
                     .foregroundColor(DT.fgMuted)
             }

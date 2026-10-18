@@ -22,21 +22,22 @@ struct LoginView: View {
                     Text("CrossFit Coach")
                         .font(DF.display(28))
                         .foregroundColor(DT.fg)
-                    Text(mode == .login ? "Přihlas se ke svému účtu" : "Vytvoř si nový účet")
+                    Text(mode == .login ? store.t("login_subtitle") : store.t("register_subtitle"))
                         .font(.system(size: 13))
                         .foregroundColor(DT.fgMuted)
                 }
                 .padding(.top, 24)
 
-                SegmentedPicker(options: [(Mode.login, "Přihlásit"), (Mode.register, "Registrovat")], selection: $mode)
+                SegmentedPicker(options: [(Mode.login, store.t("login_tab")), (Mode.register, store.t("register_tab"))], selection: $mode)
 
                 VStack(alignment: .leading, spacing: 12) {
-                    field(label: "Uživatelské jméno", text: $username, placeholder: "admin")
-                    secureField(label: "Heslo", text: $password)
+                    field(label: store.t("username"), text: $username, placeholder: "admin")
+                    secureField(label: store.t("password"), text: $password)
                 }
                 .cardStyle()
 
                 advancedServerSection
+                languagePicker
 
                 if let error = store.authError {
                     Text(error)
@@ -49,7 +50,7 @@ struct LoginView: View {
                 } label: {
                     HStack {
                         if store.authInFlight { ProgressView().tint(DT.accentInk) }
-                        Text(mode == .login ? "Přihlásit se" : "Vytvořit účet")
+                        Text(mode == .login ? store.t("login_button") : store.t("register_button"))
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -67,7 +68,7 @@ struct LoginView: View {
                 withAnimation(.easeInOut(duration: 0.15)) { showServerField.toggle() }
             } label: {
                 HStack(spacing: 4) {
-                    Text("Pokročilé: adresa serveru")
+                    Text(store.t("advanced_server"))
                     Image(systemName: showServerField ? "chevron.up" : "chevron.down")
                 }
                 .font(.system(size: 12, weight: .semibold))
@@ -76,8 +77,19 @@ struct LoginView: View {
             .buttonStyle(.plain)
 
             if showServerField {
-                field(label: "Adresa serveru", text: $store.authServerUrl, placeholder: "https://crossfit-coach-strava-proxy.xxx.workers.dev", keyboard: .URL)
+                field(label: store.t("server_address"), text: $store.authServerUrl, placeholder: "https://crossfit-coach-strava-proxy.xxx.workers.dev", keyboard: .URL)
             }
+        }
+    }
+
+    private var languagePicker: some View {
+        HStack(spacing: 4) {
+            Text(store.t("language") + ":")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(DT.fgMuted)
+            Button(store.language.label) { store.cycleLanguage() }
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundColor(DT.accentText)
         }
     }
 

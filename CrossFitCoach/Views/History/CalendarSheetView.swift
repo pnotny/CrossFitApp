@@ -9,13 +9,15 @@ struct CalendarSheetView: View {
     @State private var monthAnchor: Date = Date()
     @State private var selectedWorkout: Workout?
 
-    private static let weekdayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
-    private static let monthFormatter: DateFormatter = {
+    private static let weekdayLabelsCS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    private static let weekdayLabelsEN = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+
+    private func monthFormatter(_ lang: AppLanguage) -> DateFormatter {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "cs_CZ")
+        f.locale = Locale(identifier: lang == .en ? "en_US" : "cs_CZ")
         f.dateFormat = "LLLL yyyy"
         return f
-    }()
+    }
 
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -51,7 +53,7 @@ struct CalendarSheetView: View {
                 monthHeader
 
                 HStack(spacing: 0) {
-                    ForEach(Self.weekdayLabels, id: \.self) { label in
+                    ForEach(Array((store.language == .en ? Self.weekdayLabelsEN : Self.weekdayLabelsCS).enumerated()), id: \.offset) { _, label in
                         Text(label)
                             .font(.system(size: 11, weight: .heavy))
                             .foregroundColor(DT.fgFaint)
@@ -73,10 +75,10 @@ struct CalendarSheetView: View {
             }
             .padding(16)
             .background(DT.bg)
-            .navigationTitle("Kalendář")
+            .navigationTitle(store.t("calendar_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Zavřít") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(store.t("close")) { dismiss() } }
             }
             .sheet(item: $selectedWorkout) { HistoryWorkoutDetailView(workout: $0) }
         }
@@ -96,7 +98,7 @@ struct CalendarSheetView: View {
 
             Spacer()
 
-            Text(Self.monthFormatter.string(from: monthAnchor).capitalized)
+            Text(monthFormatter(store.language).string(from: monthAnchor).capitalized)
                 .font(.system(size: 16, weight: .heavy))
                 .foregroundColor(DT.fg)
 

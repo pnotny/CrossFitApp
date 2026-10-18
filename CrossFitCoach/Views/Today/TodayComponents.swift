@@ -5,7 +5,8 @@ import SwiftUI
 struct WeekStripView: View {
     @EnvironmentObject var store: AppStore
 
-    private static let dayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    private static let dayLabelsCS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    private static let dayLabelsEN = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
     private var weekDates: [String] { DateUtils.weekDatesAround(store.viewDate) }
 
@@ -19,7 +20,7 @@ struct WeekStripView: View {
                     store.viewDate = date
                 } label: {
                     VStack(spacing: 4) {
-                        Text(Self.dayLabels[idx])
+                        Text(store.language == .en ? Self.dayLabelsEN[idx] : Self.dayLabelsCS[idx])
                             .font(.system(size: 10, weight: .bold))
                             .trackedUppercase(0.2)
                         Text(date.split(separator: "-").last.map(String.init) ?? "")
@@ -51,10 +52,10 @@ struct WorkoutHeroCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                BadgeView(text: workout.dayTypeLabel, color: workout.dayType.color)
+                BadgeView(text: workout.dayType.label(store.language), color: workout.dayType.color)
                 Spacer()
                 if store.currentWorkoutSaved {
-                    BadgeView(text: "Uloženo", outline: true)
+                    BadgeView(text: store.t("saved_badge"), outline: true)
                 }
                 completedToggle
             }
@@ -62,7 +63,7 @@ struct WorkoutHeroCard: View {
             HStack(spacing: 22) {
                 statColumn(value: "\(workout.totalMinutes)", unit: "min")
                 statColumn(value: "\(workout.estKcal)", unit: "kcal")
-                statColumn(value: "\(workout.blocks.count)", unit: "bloky")
+                statColumn(value: "\(workout.blocks.count)", unit: store.t("blocks_unit"))
             }
             .padding(.vertical, 2)
 
@@ -70,12 +71,12 @@ struct WorkoutHeroCard: View {
                 Button {
                     store.regenerate()
                 } label: {
-                    Label("Přegenerovat", systemImage: "arrow.triangle.2.circlepath")
+                    Label(store.t("regenerate"), systemImage: "arrow.triangle.2.circlepath")
                 }
                 .buttonStyle(.dtSecondary)
 
                 Button(action: onShare) {
-                    Label("Sdílet", systemImage: "square.and.arrow.up")
+                    Label(store.t("share"), systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.dtSecondary)
             }
@@ -84,14 +85,14 @@ struct WorkoutHeroCard: View {
                 Button(role: .destructive) {
                     store.deleteCurrentWorkout()
                 } label: {
-                    Text("Smazat uložený trénink")
+                    Text(store.t("delete_saved_workout"))
                 }
                 .buttonStyle(.dtDestructive)
             } else {
                 Button {
                     store.saveCurrentWorkout()
                 } label: {
-                    Text("Uložit trénink")
+                    Text(store.t("save_workout"))
                 }
                 .buttonStyle(.dtPrimary)
             }
@@ -116,7 +117,7 @@ struct WorkoutHeroCard: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: workout.isCompleted ? "checkmark.circle.fill" : "circle")
-                Text(workout.isCompleted ? "Splněno" : "Označit splněno")
+                Text(workout.isCompleted ? store.t("completed") : store.t("mark_completed"))
             }
             .font(.system(size: 11, weight: .heavy))
             .padding(.horizontal, 10)
@@ -147,7 +148,7 @@ struct DurationPickerCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Délka tréninku")
+            Text(store.t("workout_duration"))
                 .font(.system(size: 12, weight: .heavy))
                 .trackedUppercase(0.3)
                 .foregroundColor(DT.fgMuted)
@@ -177,11 +178,11 @@ struct RpeCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Jak náročný byl trénink? (RPE)")
+            Text(store.t("rpe_question"))
                 .font(.system(size: 12, weight: .heavy))
                 .trackedUppercase(0.3)
                 .foregroundColor(DT.fgMuted)
-            Text("Pomáhá to autoregulaci zátěže v dalších trénincích.")
+            Text(store.t("rpe_hint"))
                 .font(.system(size: 12))
                 .foregroundColor(DT.fgMuted)
             HStack(spacing: 6) {
@@ -227,7 +228,7 @@ struct BlockCardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(block.title)
                         .font(.system(size: 15, weight: .heavy))
-                    Text("\(block.formatLabel) · \(block.scheme)")
+                    Text("\(block.format.label(store.language)) · \(block.scheme)")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(DT.fgMuted)
                     if let cap = block.timeCap {

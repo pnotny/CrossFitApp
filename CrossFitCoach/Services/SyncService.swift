@@ -9,6 +9,7 @@ struct SyncedState: Codable {
     var prLog: [PrEntry]?
     var theme: Storage.ThemeOption?
     var strava: StravaAuth?
+    var language: AppLanguage?
 }
 
 /// Synchronizace stavu appky (profil/historie/PR/motiv/Strava) proti stejnému

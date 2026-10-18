@@ -4,17 +4,19 @@ import SwiftUI
 /// přes ImageRenderer do PNG, stejný koncept jako canvas karta ve webové appce.
 struct ShareCardView: View {
     let workout: Workout
+    let language: AppLanguage
     private let accent: Color
 
-    init(workout: Workout) {
+    init(workout: Workout, language: AppLanguage = .cs) {
         self.workout = workout
+        self.language = language
         self.accent = workout.dayType.color
     }
 
     private var dateLabel: String {
         let date = DateUtils.date(from: workout.date)
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "cs_CZ")
+        formatter.locale = Locale(identifier: language == .en ? "en_US" : "cs_CZ")
         formatter.dateFormat = "EEEE d. MMMM"
         return formatter.string(from: date).prefix(1).uppercased() + formatter.string(from: date).dropFirst()
     }
@@ -29,7 +31,7 @@ struct ShareCardView: View {
                 .font(.system(size: 44, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
 
-            Text(workout.dayTypeLabel)
+            Text(workout.dayType.label(language))
                 .font(.system(size: 26, weight: .bold, design: .rounded))
                 .foregroundColor(accent)
 
@@ -67,7 +69,7 @@ struct ShareCardView: View {
     @ViewBuilder
     private func blockView(_ block: WorkoutBlock) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(block.formatLabel.uppercased()) · \(block.title)")
+            Text("\(block.format.label(language).uppercased()) · \(block.title)")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundColor(accent)
             if !block.scheme.isEmpty {

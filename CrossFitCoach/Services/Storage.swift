@@ -142,4 +142,24 @@ final class Storage {
     func setAuthServerUrl(_ url: String) {
         write(url, "auth_server_url")
     }
+
+    // MARK: Jazyk appky
+
+    func getLanguage() -> AppLanguage {
+        read("language", as: AppLanguage.self) ?? .cs
+    }
+
+    func setLanguage(_ lang: AppLanguage) {
+        write(lang, "language")
+    }
+
+    // MARK: AI překlad cviků (cz → en), lokální cache ať se stejný text nepřekládá opakovaně
+
+    func getTranslationCache() -> [String: String] {
+        read("translation_cache", as: [String: String].self) ?? [:]
+    }
+
+    func setTranslationCache(_ cache: [String: String]) {
+        write(cache, "translation_cache")
+    }
 }

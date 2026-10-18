@@ -252,11 +252,13 @@ enum WorkoutGenerator {
         return [.strength: strengthAdj, .metcon: metconAdj]
     }
 
-    static func autoregNote(_ autoreg: [LoadPurpose: Int], _ purpose: LoadPurpose) -> String {
+    static func autoregNote(_ autoreg: [LoadPurpose: Int], _ purpose: LoadPurpose, _ language: AppLanguage = .cs) -> String {
         let adj = autoreg[purpose] ?? 0
         guard adj != 0 else { return "" }
         let sign = adj > 0 ? "+" : ""
-        return " Autoregulace dle RPE posledních tréninků: \(sign)\(adj) % z 1RM."
+        return language == .en
+            ? " Autoregulated from recent RPE: \(sign)\(adj) % of 1RM."
+            : " Autoregulace dle RPE posledních tréninků: \(sign)\(adj) % z 1RM."
     }
 
     static func toWorkoutExercise(_ exercise: Exercise, _ profile: AthleteProfile, purpose: LoadPurpose, reps: String, note: String, autoreg: [LoadPurpose: Int]) -> WorkoutExercise {
@@ -278,7 +280,14 @@ enum WorkoutGenerator {
         return pool.randomElement() ?? candidates[0]
     }
 
-    static func strengthSetsScheme(_ level: AthleteLevel) -> (sets: Int, reps: Int, label: String) {
+    static func strengthSetsScheme(_ level: AthleteLevel, _ language: AppLanguage = .cs) -> (sets: Int, reps: Int, label: String) {
+        if language == .en {
+            switch level {
+            case .beginner: return (3, 5, "3 sets × 5 reps")
+            case .intermediate: return (4, 4, "4 sets × 4 reps")
+            case .advanced, .rx: return (5, 3, "5 sets × 3 reps")
+            }
+        }
         switch level {
         case .beginner: return (3, 5, "3 série × 5 opakování")
         case .intermediate: return (4, 4, "4 série × 4 opakování")
@@ -288,7 +297,7 @@ enum WorkoutGenerator {
 
     // MARK: Stavba jednotlivých typů dne
 
-    static func buildStrengthDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int]) -> [WorkoutBlock] {
+    static func buildStrengthDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let pool = filterPool(profile, categories: [.weightlifting]).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
@@ -302,14 +311,16 @@ enum WorkoutGenerator {
         var usedPatterns: [MovementPattern] = []
 
         if let main {
-            let scheme = strengthSetsScheme(profile.level)
+            let scheme = strengthSetsScheme(profile.level, language)
             let wEx = toWorkoutExercise(main, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg)
             usedPatterns.append(main.pattern)
-            let weightLabel = wEx.weight != nil ? "\(formatWeight(wEx.weight!)) kg" : "dle standardu"
+            let weightLabel = wEx.weight != nil ? "\(formatWeight(wEx.weight!)) kg" : (language == .en ? "per standard" : "dle standardu")
             blocks.append(WorkoutBlock(
-                title: "Blok A · Síla", format: .strength, formatLabel: WorkoutFormat.strength.label,
+                title: language == .en ? "Block A · Strength" : "Blok A · Síla", format: .strength, formatLabel: WorkoutFormat.strength.label(language),
                 durationMin: strengthMin, timeCap: nil, scheme: scheme.label, exercises: [wEx],
-                notes: "Postupné navyšování na pracovní váhu (\(weightLabel)), 2–3 min odpočinek mezi sériemi.\(autoregNote(autoreg, .strength))"
+                notes: (language == .en
+                    ? "Gradually build up to your working weight (\(weightLabel)), 2–3 min rest between sets."
+                    : "Postupné navyšování na pracovní váhu (\(weightLabel)), 2–3 min odpočinek mezi sériemi.") + autoregNote(autoreg, .strength, language)
             ))
         }
 
@@ -317,13 +328,13 @@ enum WorkoutGenerator {
         let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
-            titlePrefix: "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
-            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg
+            titlePrefix: language == .en ? "Block B · Metcon" : "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
+            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language
         ))
         return blocks
     }
 
-    static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int]) -> [WorkoutBlock] {
+    static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let skillPool = filterPool(profile, categories: [.gymnastics]).filter { !avoid.contains($0.pattern) }
@@ -339,31 +350,33 @@ enum WorkoutGenerator {
             usedPatterns.append(skillPick.pattern)
             let tier = profile.level.tier
             let info = skillPick.levels.info(for: tier)
-            let wEx = toWorkoutExercise(skillPick, profile, purpose: .technique, reps: "5 × 3–5 kvalitních opakování", note: "Technický nácvik", autoreg: autoreg)
+            let wEx = toWorkoutExercise(skillPick, profile, purpose: .technique, reps: language == .en ? "5 × 3–5 quality reps" : "5 × 3–5 kvalitních opakování", note: language == .en ? "Technique practice" : "Technický nácvik", autoreg: autoreg)
             blocks.append(WorkoutBlock(
-                title: "Blok A · Skill", format: .strength, formatLabel: "Technika",
-                durationMin: skillMin, timeCap: nil, scheme: "5 sérií, důraz na kvalitu", exercises: [wEx],
-                notes: "Kritérium postupu: \(info.criteria)"
+                title: language == .en ? "Block A · Skill" : "Blok A · Skill", format: .strength, formatLabel: language == .en ? "Technique" : "Technika",
+                durationMin: skillMin, timeCap: nil, scheme: language == .en ? "5 sets, focus on quality" : "5 sérií, důraz na kvalitu", exercises: [wEx],
+                notes: "\(language == .en ? "Criteria to advance" : "Kritérium postupu"): \(info.criteria)"
             ))
         }
 
         let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0), 8, 65)
         let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman])
         blocks.append(contentsOf: buildMetconSegments(
-            titlePrefix: "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
-            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg
+            titlePrefix: language == .en ? "Block B · EMOM" : "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
+            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language
         ))
         return blocks
     }
 
-    static func buildMonostructuralDay(_ profile: AthleteProfile) -> [WorkoutBlock] {
+    static func buildMonostructuralDay(_ profile: AthleteProfile, _ language: AppLanguage = .cs) -> [WorkoutBlock] {
         let pool = filterPool(profile, categories: [.monostructural])
         let total = clampInt(profile.timeAvailable, 12, 90)
         guard !pool.isEmpty else {
             return [WorkoutBlock(
-                title: "Engine", format: .steady, formatLabel: WorkoutFormat.steady.label,
-                durationMin: total, timeCap: nil, scheme: "Aktivní regenerace", exercises: [],
-                notes: "Nemáš k dispozici žádné monostrukturální vybavení — zvol volnou chůzi/lehký výklus jako aktivní regeneraci."
+                title: "Engine", format: .steady, formatLabel: WorkoutFormat.steady.label(language),
+                durationMin: total, timeCap: nil, scheme: language == .en ? "Active recovery" : "Aktivní regenerace", exercises: [],
+                notes: language == .en
+                    ? "No monostructural equipment available — pick a light walk/easy spin as active recovery."
+                    : "Nemáš k dispozici žádné monostrukturální vybavení — zvol volnou chůzi/lehký výklus jako aktivní regeneraci."
             )]
         }
         let candidateFormats: [WorkoutFormat] = total <= 20 ? [.tabata, .intervals] : [.intervals, .steady]
@@ -372,31 +385,31 @@ enum WorkoutGenerator {
         var wEx = toWorkoutExercise(pick, profile, purpose: .metcon, reps: "", note: "", autoreg: [:])
 
         if format == .tabata {
-            wEx.reps = "8 kol × 20 s práce / 10 s odpočinek"
+            wEx.reps = language == .en ? "8 rounds × 20s work / 10s rest" : "8 kol × 20 s práce / 10 s odpočinek"
             return [WorkoutBlock(
-                title: "Engine · Tabata", format: format, formatLabel: WorkoutFormat.tabata.label,
+                title: "Engine · Tabata", format: format, formatLabel: WorkoutFormat.tabata.label(language),
                 durationMin: 4, timeCap: nil, scheme: "8 × (20s ON / 10s OFF)", exercises: [wEx],
-                notes: "Maximální úsilí v každém 20s intervalu."
+                notes: language == .en ? "Max effort in every 20s interval." : "Maximální úsilí v každém 20s intervalu."
             )]
         }
         if format == .intervals {
             let rounds = clampInt(Int((Double(total) / 6).rounded()), 4, 14)
-            wEx.reps = "\(rounds) × 500 m (nebo 90 s) / 90 s odpočinek"
+            wEx.reps = language == .en ? "\(rounds) × 500 m (or 90 s) / 90 s rest" : "\(rounds) × 500 m (nebo 90 s) / 90 s odpočinek"
             return [WorkoutBlock(
-                title: "Engine · Intervaly", format: format, formatLabel: WorkoutFormat.intervals.label,
-                durationMin: total, timeCap: nil, scheme: "\(rounds) intervalů se stálým odpočinkem", exercises: [wEx],
-                notes: "Udržuj konzistentní tempo/split napříč všemi koly."
+                title: "Engine · Intervaly", format: format, formatLabel: WorkoutFormat.intervals.label(language),
+                durationMin: total, timeCap: nil, scheme: language == .en ? "\(rounds) intervals with steady rest" : "\(rounds) intervalů se stálým odpočinkem", exercises: [wEx],
+                notes: language == .en ? "Keep a consistent pace/split across all rounds." : "Udržuj konzistentní tempo/split napříč všemi koly."
             )]
         }
-        wEx.reps = "\(total) minut v konstantním tempu (zóna 2–3)"
+        wEx.reps = language == .en ? "\(total) minutes at steady pace (zone 2–3)" : "\(total) minut v konstantním tempu (zóna 2–3)"
         return [WorkoutBlock(
-            title: "Engine · Steady State", format: format, formatLabel: WorkoutFormat.steady.label,
-            durationMin: total, timeCap: nil, scheme: "Souvislé tempo", exercises: [wEx],
-            notes: "Udržitelné, konverzační tempo po celou dobu."
+            title: "Engine · Steady State", format: format, formatLabel: WorkoutFormat.steady.label(language),
+            durationMin: total, timeCap: nil, scheme: language == .en ? "Steady pace" : "Souvislé tempo", exercises: [wEx],
+            notes: language == .en ? "Sustainable, conversational pace the whole time." : "Udržitelné, konverzační tempo po celou dobu."
         )]
     }
 
-    static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int]) -> [WorkoutBlock] {
+    static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
         let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
@@ -408,47 +421,58 @@ enum WorkoutGenerator {
             toWorkoutExercise(ex, profile, purpose: .metcon, reps: String(i < baseReps.count ? baseReps[i] : 15), note: "", autoreg: autoreg)
         }
         return [WorkoutBlock(
-            title: "Chipper", format: .chipper, formatLabel: WorkoutFormat.chipper.label,
-            durationMin: timeCap, timeCap: "\(timeCap) min", scheme: "For Time — projdi cviky v pořadí, jednou každý",
-            exercises: exercises, notes: "Dlouhý objemový trénink — rozlož síly, nezačínej zbytečně rychle.\(autoregNote(autoreg, .metcon))"
+            title: "Chipper", format: .chipper, formatLabel: WorkoutFormat.chipper.label(language),
+            durationMin: timeCap, timeCap: "\(timeCap) min", scheme: language == .en ? "For Time — go through the exercises in order, once each" : "For Time — projdi cviky v pořadí, jednou každý",
+            exercises: exercises, notes: (language == .en
+                ? "Long volume workout — pace yourself, don't start too fast."
+                : "Dlouhý objemový trénink — rozlož síly, nezačínej zbytečně rychle.") + autoregNote(autoreg, .metcon, language)
         )]
     }
 
-    static func buildMetconBlock(title: String, format: WorkoutFormat, picks: [Exercise], profile: AthleteProfile, minutes: Int, autoreg: [LoadPurpose: Int]) -> WorkoutBlock {
+    static func buildMetconBlock(title: String, format: WorkoutFormat, picks: [Exercise], profile: AthleteProfile, minutes: Int, autoreg: [LoadPurpose: Int], language: AppLanguage = .cs) -> WorkoutBlock {
         var exercises = picks.map { toWorkoutExercise($0, profile, purpose: .metcon, reps: "", note: "", autoreg: autoreg) }
-        let note = autoregNote(autoreg, .metcon)
+        let note = autoregNote(autoreg, .metcon, language)
 
         if format == .emom {
             for i in exercises.indices {
-                exercises[i].reps = exercises[i].category == .monostructural ? "12–15 kalorií"
-                    : (exercises[i].category == .gymnastics ? "8–12 opakování" : "5–6 opakování")
-                exercises[i].note = "Minuta \(i + 1) z každého cyklu"
+                exercises[i].reps = language == .en
+                    ? (exercises[i].category == .monostructural ? "12–15 cals" : (exercises[i].category == .gymnastics ? "8–12 reps" : "5–6 reps"))
+                    : (exercises[i].category == .monostructural ? "12–15 kalorií" : (exercises[i].category == .gymnastics ? "8–12 opakování" : "5–6 opakování"))
+                exercises[i].note = language == .en ? "Minute \(i + 1) of every cycle" : "Minuta \(i + 1) z každého cyklu"
             }
             return WorkoutBlock(
-                title: title, format: .emom, formatLabel: WorkoutFormat.emom.label, durationMin: minutes, timeCap: nil,
-                scheme: "EMOM \(minutes) min — střídej \(exercises.count) cviky po minutách", exercises: exercises,
-                notes: "Cílem je zvládnout práci vždy v první polovině minuty a mít prostor na odpočinek.\(note)"
+                title: title, format: .emom, formatLabel: WorkoutFormat.emom.label(language), durationMin: minutes, timeCap: nil,
+                scheme: language == .en ? "EMOM \(minutes) min — rotate \(exercises.count) exercises each minute" : "EMOM \(minutes) min — střídej \(exercises.count) cviky po minutách", exercises: exercises,
+                notes: (language == .en
+                    ? "Aim to finish the work in the first half of the minute, leaving time to rest."
+                    : "Cílem je zvládnout práci vždy v první polovině minuty a mít prostor na odpočinek.") + note
             )
         }
         if format == .forTime {
             for i in exercises.indices {
-                exercises[i].reps = exercises[i].category == .monostructural ? "15 kalorií" : "15 opakování"
+                exercises[i].reps = language == .en
+                    ? (exercises[i].category == .monostructural ? "15 cals" : "15 reps")
+                    : (exercises[i].category == .monostructural ? "15 kalorií" : "15 opakování")
             }
             let cap = "\(minutes) min"
             let names = exercises.map(\.name).joined(separator: ", ")
             return WorkoutBlock(
-                title: title, format: .forTime, formatLabel: WorkoutFormat.forTime.label, durationMin: minutes, timeCap: cap,
-                scheme: "3 kola For Time — \(names)", exercises: exercises,
-                notes: "Time cap \(cap). Piš si čas dokončení pro sledování progresu.\(note)"
+                title: title, format: .forTime, formatLabel: WorkoutFormat.forTime.label(language), durationMin: minutes, timeCap: cap,
+                scheme: language == .en ? "3 rounds For Time — \(names)" : "3 kola For Time — \(names)", exercises: exercises,
+                notes: "\(language == .en ? "Time cap" : "Time cap") \(cap). \(language == .en ? "Note your finish time to track progress." : "Piš si čas dokončení pro sledování progresu.")\(note)"
             )
         }
         for i in exercises.indices {
-            exercises[i].reps = exercises[i].category == .monostructural ? "12 kalorií" : "10 opakování"
+            exercises[i].reps = language == .en
+                ? (exercises[i].category == .monostructural ? "12 cals" : "10 reps")
+                : (exercises[i].category == .monostructural ? "12 kalorií" : "10 opakování")
         }
         return WorkoutBlock(
-            title: title, format: .amrap, formatLabel: WorkoutFormat.amrap.label, durationMin: minutes, timeCap: nil,
+            title: title, format: .amrap, formatLabel: WorkoutFormat.amrap.label(language), durationMin: minutes, timeCap: nil,
             scheme: "AMRAP \(minutes) min", exercises: exercises,
-            notes: "Co nejvíce kompletních kol v daném čase, technika před rychlostí.\(note)"
+            notes: (language == .en
+                ? "As many complete rounds as possible in the time, technique before speed."
+                : "Co nejvíce kompletních kol v daném čase, technika před rychlostí.") + note
         )
     }
 
@@ -457,7 +481,7 @@ enum WorkoutGenerator {
     static func buildMetconSegments(
         titlePrefix: String, formatCandidates: [WorkoutFormat], pool: [Exercise], profile: AthleteProfile,
         totalMinutes: Int, baseAvoidPatterns: [MovementPattern], muscleLoad: [String: Int], autoreg: [LoadPurpose: Int],
-        exercisesPerSegment: Int = 3
+        exercisesPerSegment: Int = 3, language: AppLanguage = .cs
     ) -> [WorkoutBlock] {
         let format = pickMetconFormat(formatCandidates, profile)
         let numSegments = totalMinutes > 22 ? clampInt(Int((Double(totalMinutes) / 15).rounded()), 2, 4) : 1
@@ -472,8 +496,12 @@ enum WorkoutGenerator {
             if segPool.count < exercisesPerSegment { segPool = pool }
             let picks = pickExercises(segPool, count: exercisesPerSegment, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad)
             let label = numSegments > 1 ? "\(titlePrefix) · \(i + 1)/\(numSegments)" : titlePrefix
-            var block = buildMetconBlock(title: label, format: format, picks: picks, profile: profile, minutes: segMinutes, autoreg: autoreg)
-            if numSegments > 1 { block.notes += " Krátký odpočinek (2–3 min) a nová sada cviků na jiné partie." }
+            var block = buildMetconBlock(title: label, format: format, picks: picks, profile: profile, minutes: segMinutes, autoreg: autoreg, language: language)
+            if numSegments > 1 {
+                block.notes += language == .en
+                    ? " Short rest (2–3 min) and a new set of exercises for different muscle groups."
+                    : " Krátký odpočinek (2–3 min) a nová sada cviků na jiné partie."
+            }
             blocks.append(block)
             for p in picks { cumulativePatterns.append(p.pattern); cumulativeIds.append(p.id) }
         }
@@ -490,17 +518,19 @@ enum WorkoutGenerator {
 
     // MARK: Veřejné API
 
-    static func generateWorkout(profile: AthleteProfile, dateString: String, history: [Workout]) -> Workout {
+    static func generateWorkout(profile: AthleteProfile, dateString: String, history: [Workout], language: AppLanguage = .cs) -> Workout {
         let dayIdx = DateUtils.weekdayIndex(dateString)
         let dayType = dayIdx < profile.weeklyTemplate.count ? profile.weeklyTemplate[dayIdx] : .rest
 
         if dayType == .rest {
             return Workout(
-                date: dateString, dayType: .rest, dayTypeLabel: DayType.rest.label,
+                date: dateString, dayType: .rest, dayTypeLabel: DayType.rest.label(language),
                 blocks: [WorkoutBlock(
-                    title: "Odpočinek", format: .rest, formatLabel: WorkoutFormat.rest.label,
-                    durationMin: 20, timeCap: nil, scheme: "Mobilita / regenerace", exercises: [],
-                    notes: "Lehké strečování, mobilita kyčlí a ramen, procházka. Žádná intenzivní zátěž."
+                    title: language == .en ? "Rest" : "Odpočinek", format: .rest, formatLabel: WorkoutFormat.rest.label(language),
+                    durationMin: 20, timeCap: nil, scheme: language == .en ? "Mobility / recovery" : "Mobilita / regenerace", exercises: [],
+                    notes: language == .en
+                        ? "Light stretching, hip and shoulder mobility, a walk. No intense load."
+                        : "Lehké strečování, mobilita kyčlí a ramen, procházka. Žádná intenzivní zátěž."
                 )],
                 estKcal: 60, generatedAt: Date(), edited: false, rpe: nil
             )
@@ -509,15 +539,15 @@ enum WorkoutGenerator {
         let autoreg = computeAutoreg(history, profile)
         let blocks: [WorkoutBlock]
         switch dayType {
-        case .strength: blocks = buildStrengthDay(profile, dateString, history, autoreg)
-        case .gymnastics: blocks = buildGymnasticsDay(profile, dateString, history, autoreg)
-        case .monostructural: blocks = buildMonostructuralDay(profile)
-        case .chipper: blocks = buildChipperDay(profile, dateString, history, autoreg)
+        case .strength: blocks = buildStrengthDay(profile, dateString, history, autoreg, language)
+        case .gymnastics: blocks = buildGymnasticsDay(profile, dateString, history, autoreg, language)
+        case .monostructural: blocks = buildMonostructuralDay(profile, language)
+        case .chipper: blocks = buildChipperDay(profile, dateString, history, autoreg, language)
         case .rest: blocks = [] // nedosažitelné, ošetřeno výše
         }
 
         return Workout(
-            date: dateString, dayType: dayType, dayTypeLabel: dayType.label, blocks: blocks,
+            date: dateString, dayType: dayType, dayTypeLabel: dayType.label(language), blocks: blocks,
             estKcal: estimateCalories(blocks, bodyweight: profile.bodyweight),
             generatedAt: Date(), edited: false, rpe: nil
         )

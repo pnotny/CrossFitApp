@@ -20,7 +20,7 @@ struct HistoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Historie")
+                Text(store.t("history_title"))
                     .font(DF.display(28))
                     .foregroundColor(DT.fg)
 
@@ -28,16 +28,16 @@ struct HistoryView: View {
                 prSection
 
                 workoutSection(
-                    title: "Uložené tréninky",
+                    title: store.t("saved_workouts"),
                     workouts: savedWorkouts,
                     emptyIcon: "📝",
-                    emptyText: "Zatím žádné naplánované/uložené tréninky."
+                    emptyText: store.t("no_saved_workouts")
                 )
                 workoutSection(
-                    title: "Odjeté tréninky",
+                    title: store.t("completed_workouts"),
                     workouts: completedWorkouts,
                     emptyIcon: "✅",
-                    emptyText: "Zatím žádný odjetý trénink — odškrtni ho na kartě Dnes."
+                    emptyText: store.t("no_completed_workouts")
                 )
             }
             .padding(16)
@@ -54,7 +54,7 @@ struct HistoryView: View {
                 Image(systemName: "calendar")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(DT.accentText)
-                Text("Kalendář tréninků")
+                Text(store.t("training_calendar"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(DT.fg)
                 Spacer()
@@ -94,7 +94,7 @@ struct HistoryView: View {
     private var prSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Osobní rekordy (1RM)")
+                Text(store.t("personal_records"))
                     .font(.system(size: 12, weight: .heavy))
                     .trackedUppercase(0.3)
                     .foregroundColor(DT.fgMuted)
@@ -119,7 +119,7 @@ struct HistoryView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(DT.fg)
                 HStack(spacing: 6) {
-                    BadgeView(text: workout.dayTypeLabel, color: workout.dayType.color)
+                    BadgeView(text: workout.dayType.label(store.language), color: workout.dayType.color)
                     if let rpe = workout.rpe {
                         Text("RPE \(rpe)")
                             .font(.system(size: 12))
@@ -201,7 +201,7 @@ struct HistoryWorkoutDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        BadgeView(text: workout.dayTypeLabel, color: workout.dayType.color)
+                        BadgeView(text: workout.dayType.label(store.language), color: workout.dayType.color)
                         if let rpe = workout.rpe {
                             BadgeView(text: "RPE \(rpe)", outline: true)
                         }
@@ -212,13 +212,13 @@ struct HistoryWorkoutDetailView: View {
 
                     HStack(spacing: 10) {
                         Button {
-                            if let image = ShareCardRenderer.render(workout: workout) {
+                            if let image = ShareCardRenderer.render(workout: workout, language: store.language) {
                                 shareItem = ShareImageItem(image: image)
                             } else {
-                                store.toast("Export karty se nepodařil")
+                                store.toast(store.t("card_export_failed"))
                             }
                         } label: {
-                            Label("Sdílet", systemImage: "square.and.arrow.up")
+                            Label(store.t("share"), systemImage: "square.and.arrow.up")
                         }
                         .buttonStyle(.dtSecondary)
 
@@ -232,7 +232,7 @@ struct HistoryWorkoutDetailView: View {
                             } label: {
                                 HStack {
                                     if exporting { ProgressView().tint(.white) }
-                                    Text(workout.stravaActivityId != nil ? "Znovu na Strava" : "Na Strava")
+                                    Text(workout.stravaActivityId != nil ? store.t("resend_to_strava_short") : store.t("to_strava"))
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 13)
@@ -251,7 +251,7 @@ struct HistoryWorkoutDetailView: View {
                             HStack {
                                 Text(block.title).font(.system(size: 15, weight: .heavy)).foregroundColor(DT.fg)
                                 Spacer()
-                                BadgeView(text: block.formatLabel, outline: true)
+                                BadgeView(text: block.format.label(store.language), outline: true)
                             }
                             Text(block.scheme).font(.system(size: 12)).foregroundColor(DT.fgMuted)
                             ForEach(block.exercises, id: \.exerciseId) { ex in
@@ -273,7 +273,7 @@ struct HistoryWorkoutDetailView: View {
             .navigationTitle(workout.date)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Hotovo") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(store.t("done")) { dismiss() } }
             }
             .sheet(item: $shareItem) { item in
                 ActivityShareSheet(items: [item.image])
@@ -294,22 +294,22 @@ struct AddPrSheetView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Picker("Cvik", selection: $selectedLift) {
+                Picker(store.t("exercise"), selection: $selectedLift) {
                     ForEach(OneRepMaxes.liftLabels, id: \.key) { lift in
                         Text(lift.label).tag(lift.key)
                     }
                 }
-                TextField("Váha (kg)", text: $valueText)
+                TextField(store.t("weight_kg"), text: $valueText)
                     .keyboardType(.decimalPad)
             }
             .scrollContentBackground(.hidden)
             .background(DT.bg)
-            .navigationTitle("Nový PR")
+            .navigationTitle(store.t("new_pr"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Zavřít") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(store.t("close")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Uložit") {
+                    Button(store.t("save")) {
                         if let value = Double(valueText.replacingOccurrences(of: ",", with: ".")), value > 0 {
                             store.addPrEntry(lift: selectedLift, value: value, date: date)
                             dismiss()

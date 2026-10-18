@@ -12,24 +12,24 @@ struct AccountSheetView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Jméno a příjmení", text: $name)
+                    TextField(store.t("full_name"), text: $name)
                 } header: {
-                    Text("Osobní údaje")
+                    Text(store.t("personal_info"))
                 }
 
                 Section {
                     HStack {
-                        Text("Uživatelské jméno")
+                        Text(store.t("username"))
                         Spacer()
                         Text(store.authUser?.username ?? "—")
                             .foregroundColor(DT.fgMuted)
                     }
                 } header: {
-                    Text("Účet")
+                    Text(store.t("account"))
                 }
 
                 Section {
-                    Button("Odhlásit se", role: .destructive) {
+                    Button(store.t("logout"), role: .destructive) {
                         dismiss()
                         store.logout()
                     }
@@ -37,12 +37,12 @@ struct AccountSheetView: View {
             }
             .scrollContentBackground(.hidden)
             .background(DT.bg)
-            .navigationTitle("Účet")
+            .navigationTitle(store.t("account"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Zavřít") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(store.t("close")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Uložit") {
+                    Button(store.t("save")) {
                         var profile = store.profile
                         profile.name = name
                         store.saveProfile(profile)

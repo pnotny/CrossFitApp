@@ -40,6 +40,7 @@ extension View {
 /// červené tlačítko smazání — vlastní implementace, appka nepoužívá List,
 /// takže nativní `.swipeActions` není k dispozici.
 struct SwipeToDeleteRow<Content: View>: View {
+    @EnvironmentObject var store: AppStore
     let onDelete: () -> Void
     @ViewBuilder var content: () -> Content
 
@@ -53,7 +54,7 @@ struct SwipeToDeleteRow<Content: View>: View {
                 VStack(spacing: 4) {
                     Image(systemName: "trash")
                         .font(.system(size: 17, weight: .semibold))
-                    Text("Smazat")
+                    Text(store.t("delete"))
                         .font(.system(size: 11, weight: .bold))
                 }
                 .foregroundColor(.white)

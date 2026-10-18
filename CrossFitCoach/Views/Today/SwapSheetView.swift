@@ -22,7 +22,7 @@ struct SwapSheetView: View {
             List {
                 let candidates = store.swapCandidates(blockIndex: context.blockIndex, exerciseIndex: context.exerciseIndex)
                 if candidates.isEmpty {
-                    Text("Žádná vhodná náhrada s aktuálním vybavením.")
+                    Text(store.t("no_swap_candidates"))
                         .foregroundColor(DT.fgMuted)
                         .listRowBackground(DT.surface)
                 } else {
@@ -36,7 +36,7 @@ struct SwapSheetView: View {
                                     Text(ex.name)
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundColor(DT.fg)
-                                    Text("\(ex.pattern.label) · \(ex.category.label)")
+                                    Text("\(ex.pattern.label(store.language)) · \(ex.category.label(store.language))")
                                         .font(.system(size: 12))
                                         .foregroundColor(DT.fgMuted)
                                 }
@@ -51,10 +51,10 @@ struct SwapSheetView: View {
             }
             .scrollContentBackground(.hidden)
             .background(DT.bg)
-            .navigationTitle("Vyměnit „\(currentName)“")
+            .navigationTitle("\(store.t("swap_title_prefix")) „\(currentName)“")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Zavřít") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(store.t("close")) { dismiss() } }
             }
         }
     }

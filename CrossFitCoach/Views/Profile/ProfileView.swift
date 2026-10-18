@@ -9,13 +9,14 @@ struct ProfileView: View {
     @State private var levelUpDismissed = false
     @State private var showAccountSheet = false
 
-    private static let dayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    private static let dayLabelsCS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    private static let dayLabelsEN = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
     private static let preferredFormatOptions: [WorkoutFormat] = [.emom, .amrap, .forTime, .chipper, .tabata, .intervals, .steady]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Profil")
+                Text(store.t("profile_title"))
                     .font(DF.display(28))
                     .foregroundColor(DT.fg)
 
@@ -32,6 +33,7 @@ struct ProfileView: View {
                 weeklyTemplateCard
                 stravaCard
                 appearanceCard
+                languageCard
                 accountCard
 
                 HStack(spacing: 10) {
@@ -39,14 +41,14 @@ struct ProfileView: View {
                         store.loadTestProfile()
                         loadDraft()
                     } label: {
-                        Text("Testovací profil")
+                        Text(store.t("test_profile"))
                     }
                     .buttonStyle(.dtSecondary)
 
                     Button {
                         store.saveProfile(draft)
                     } label: {
-                        Text("Uložit profil")
+                        Text(store.t("save_profile"))
                     }
                     .buttonStyle(.dtPrimary)
                 }
@@ -81,12 +83,12 @@ struct ProfileView: View {
 
     private var basicsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Základní údaje")
+            sectionHeader(store.t("basics"))
 
-            SegmentedPicker(options: Gender.allCases.map { ($0, $0.label) }, selection: $draft.gender)
+            SegmentedPicker(options: Gender.allCases.map { ($0, $0.label(store.language)) }, selection: $draft.gender)
 
             HStack {
-                Text("Váha").font(.system(size: 14)).foregroundColor(DT.fg)
+                Text(store.t("bodyweight")).font(.system(size: 14)).foregroundColor(DT.fg)
                 Spacer()
                 TextField("kg", value: $draft.bodyweight, format: .number)
                     .keyboardType(.decimalPad)
@@ -96,7 +98,7 @@ struct ProfileView: View {
                 Text("kg").font(.system(size: 13)).foregroundColor(DT.fgMuted)
             }
 
-            Text("Úroveň").font(.system(size: 11, weight: .heavy)).trackedUppercase(0.2).foregroundColor(DT.fgMuted)
+            Text(store.t("level")).font(.system(size: 11, weight: .heavy)).trackedUppercase(0.2).foregroundColor(DT.fgMuted)
             SegmentedPicker(options: AthleteLevel.allCases.map { ($0, $0.label) }, selection: $draft.level)
         }
         .cardStyle()
@@ -118,27 +120,31 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.up.circle.fill").foregroundColor(DT.accentText)
-                Text("Čas na posun?").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                Text(store.t("level_up_question")).font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
             }
-            Text("Trénuješ už \(store.history.count) tréninků na úrovni \(draft.level.label). Zvaž posun na \(next.label) — cviky i váhy se tomu přizpůsobí, ale nic se nezmění bez tvého potvrzení.")
+            Text(store.language == .en
+                ? "You've trained \(store.history.count) workouts at \(draft.level.label) level. Consider moving to \(next.label) — exercises and weights will adjust, but nothing changes without your confirmation."
+                : "Trénuješ už \(store.history.count) tréninků na úrovni \(draft.level.label). Zvaž posun na \(next.label) — cviky i váhy se tomu přizpůsobí, ale nic se nezmění bez tvého potvrzení.")
                 .font(.system(size: 13))
                 .foregroundColor(DT.fgMuted)
             HStack(spacing: 10) {
-                Button("Teď ne") { levelUpDismissed = true }
+                Button(store.t("not_now")) { levelUpDismissed = true }
                     .buttonStyle(.dtSecondary)
-                Button("Přejít na \(next.label)") { showLevelUpConfirm = true }
+                Button("\(store.t("move_to")) \(next.label)") { showLevelUpConfirm = true }
                     .buttonStyle(.dtPrimary)
             }
         }
         .cardStyle()
-        .alert("Přejít na \(next.label)?", isPresented: $showLevelUpConfirm) {
-            Button("Zrušit", role: .cancel) {}
-            Button("Přejít") {
+        .alert("\(store.t("move_to")) \(next.label)?", isPresented: $showLevelUpConfirm) {
+            Button(store.t("cancel"), role: .cancel) {}
+            Button(store.t("move")) {
                 draft.level = next
                 store.saveProfile(draft)
             }
         } message: {
-            Text("Příští tréninky budou počítat s úrovní \(next.label) — náročnější cviky i vyšší pracovní váhy.")
+            Text(store.language == .en
+                ? "Future workouts will use \(next.label) level — harder exercises and higher working weights."
+                : "Příští tréninky budou počítat s úrovní \(next.label) — náročnější cviky i vyšší pracovní váhy.")
         }
     }
 
@@ -146,7 +152,7 @@ struct ProfileView: View {
 
     private var oneRMCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("1RM (osobní maxima)")
+            sectionHeader(store.t("one_rm"))
             ForEach(OneRepMaxes.liftLabels, id: \.key) { lift in
                 HStack {
                     Text(lift.label).font(.system(size: 14)).foregroundColor(DT.fg)
@@ -173,10 +179,10 @@ struct ProfileView: View {
 
     private var equipmentCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Dostupné vybavení")
+            sectionHeader(store.t("available_equipment"))
             ChipGrid {
                 ForEach(Equipment.allCases.filter { $0 != .none }, id: \.self) { eq in
-                    ChipButton(label: eq.label, isActive: draft.equipment.contains(eq)) {
+                    ChipButton(label: eq.label(store.language), isActive: draft.equipment.contains(eq)) {
                         toggle(eq, in: \.equipment)
                     }
                 }
@@ -189,12 +195,12 @@ struct ProfileView: View {
 
     private var excludedPatternsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Vyloučené pohybové vzory")
-            Text("Např. kvůli zranění nebo zákazu olympijských zdvihů.")
+            sectionHeader(store.t("excluded_patterns"))
+            Text(store.t("excluded_patterns_hint"))
                 .font(.system(size: 12)).foregroundColor(DT.fgMuted)
             ChipGrid {
                 ForEach(MovementPattern.allCases, id: \.self) { pattern in
-                    ChipButton(label: pattern.label, isActive: draft.excludedPatterns.contains(pattern), danger: true) {
+                    ChipButton(label: pattern.label(store.language), isActive: draft.excludedPatterns.contains(pattern), danger: true) {
                         toggle(pattern, in: \.excludedPatterns)
                     }
                 }
@@ -207,8 +213,8 @@ struct ProfileView: View {
 
     private var goalCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Hlavní cíl")
-            SegmentedPicker(options: Goal.allCases.map { ($0, $0.label) }, selection: $draft.goal)
+            sectionHeader(store.t("main_goal"))
+            SegmentedPicker(options: Goal.allCases.map { ($0, $0.label(store.language)) }, selection: $draft.goal)
         }
         .cardStyle()
     }
@@ -217,10 +223,10 @@ struct ProfileView: View {
 
     private var preferredFormatsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Oblíbené formáty metconu")
+            sectionHeader(store.t("preferred_formats"))
             ChipGrid {
                 ForEach(Self.preferredFormatOptions, id: \.self) { format in
-                    ChipButton(label: format.label, isActive: draft.preferredFormats.contains(format)) {
+                    ChipButton(label: format.label(store.language), isActive: draft.preferredFormats.contains(format)) {
                         toggle(format, in: \.preferredFormats)
                     }
                 }
@@ -235,8 +241,8 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $draft.autoregEnabled) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Autoregulace zátěže (RPE)").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
-                    Text("Upraví zátěž podle hodnocení náročnosti posledních tréninků.")
+                    Text(store.t("autoreg_title")).font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                    Text(store.t("autoreg_hint"))
                         .font(.system(size: 12)).foregroundColor(DT.fgMuted)
                 }
             }
@@ -249,10 +255,10 @@ struct ProfileView: View {
 
     private var weeklyTemplateCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Týdenní plán")
+            sectionHeader(store.t("weekly_plan"))
             ForEach(0..<7, id: \.self) { idx in
                 HStack {
-                    Text(Self.dayLabels[idx])
+                    Text(store.language == .en ? Self.dayLabelsEN[idx] : Self.dayLabelsCS[idx])
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(DT.fg)
                         .frame(width: 32, alignment: .leading)
@@ -265,7 +271,7 @@ struct ProfileView: View {
                         }
                     )) {
                         ForEach(DayType.allCases, id: \.self) { day in
-                            Text(day.label).tag(day)
+                            Text(day.label(store.language)).tag(day)
                         }
                     }
                     .pickerStyle(.menu)
@@ -283,13 +289,13 @@ struct ProfileView: View {
             sectionHeader("Strava")
             if store.stravaAuth?.isConnected == true {
                 HStack {
-                    BadgeView(text: "Připojeno", color: .green)
+                    BadgeView(text: store.t("connected"), color: .green)
                     Spacer()
-                    Button("Odpojit", role: .destructive) { store.disconnectStrava() }
+                    Button(store.t("disconnect"), role: .destructive) { store.disconnectStrava() }
                         .foregroundColor(DT.danger)
                 }
             } else {
-                Text("Zadej URL svého Cloudflare Worker proxy pro OAuth.")
+                Text(store.t("strava_hint"))
                     .font(.system(size: 12)).foregroundColor(DT.fgMuted)
                 TextField("https://strava-worker.example.workers.dev", text: $stravaWorkerUrl)
                     .textFieldStyle(.roundedBorder)
@@ -299,7 +305,7 @@ struct ProfileView: View {
                 Button {
                     store.connectStrava(workerUrl: stravaWorkerUrl)
                 } label: {
-                    Text("Připojit Strava")
+                    Text(store.t("connect_strava"))
                 }
                 .buttonStyle(.dtPrimary)
                 .disabled(stravaWorkerUrl.isEmpty)
@@ -313,11 +319,11 @@ struct ProfileView: View {
     private var appearanceCard: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Motiv").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                Text(store.t("theme")).font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
                 Text(themeLabel).font(.system(size: 12)).foregroundColor(DT.fgMuted)
             }
             Spacer()
-            Button("Změnit") { store.cycleTheme() }
+            Button(store.t("change")) { store.cycleTheme() }
                 .font(.system(size: 13, weight: .heavy))
                 .foregroundColor(DT.accentText)
         }
@@ -326,10 +332,26 @@ struct ProfileView: View {
 
     private var themeLabel: String {
         switch store.theme {
-        case .auto: return "Automaticky"
-        case .light: return "Světlý"
-        case .dark: return "Tmavý"
+        case .auto: return store.t("theme_auto")
+        case .light: return store.t("theme_light")
+        case .dark: return store.t("theme_dark")
         }
+    }
+
+    // MARK: - Jazyk
+
+    private var languageCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(store.t("language")).font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                Text(store.language.label).font(.system(size: 12)).foregroundColor(DT.fgMuted)
+            }
+            Spacer()
+            Button(store.t("change")) { store.cycleLanguage() }
+                .font(.system(size: 13, weight: .heavy))
+                .foregroundColor(DT.accentText)
+        }
+        .cardStyle()
     }
 
     // MARK: Účet
@@ -338,7 +360,7 @@ struct ProfileView: View {
         Button { showAccountSheet = true } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Účet").font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
+                    Text(store.t("account")).font(.system(size: 14, weight: .bold)).foregroundColor(DT.fg)
                     Text(store.authUser?.username ?? "—").font(.system(size: 12)).foregroundColor(DT.fgMuted)
                 }
                 Spacer()

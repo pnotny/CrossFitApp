@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Jazyk appky
+
+enum AppLanguage: String, Codable, CaseIterable, Hashable {
+    case cs, en
+
+    var label: String { self == .cs ? "Čeština" : "English" }
+}
+
 // MARK: - Základní enumy (1:1 s hodnotami z webové verze, aby šla databáze cviků přenést beze změny)
 
 enum MovementCategory: String, Codable, CaseIterable, Hashable {
@@ -10,6 +18,16 @@ enum MovementCategory: String, Codable, CaseIterable, Hashable {
         case .weightlifting: return "Vzpírání"
         case .gymnastics: return "Gymnastika"
         case .monostructural: return "Monostrukturální"
+        case .strongman: return "Strongman / odd-object"
+        }
+    }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        switch self {
+        case .weightlifting: return "Weightlifting"
+        case .gymnastics: return "Gymnastics"
+        case .monostructural: return "Monostructural"
         case .strongman: return "Strongman / odd-object"
         }
     }
@@ -35,6 +53,24 @@ enum MovementPattern: String, Codable, CaseIterable, Hashable {
         case .fullBody: return "Celé tělo"
         case .olympic: return "Vzpírání (Oly)"
         case .monostructural: return "Monostrukturální"
+        }
+    }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        switch self {
+        case .squat: return "Squat"
+        case .hinge: return "Hip hinge"
+        case .push: return "Push"
+        case .pull: return "Pull"
+        case .carry: return "Carry"
+        case .jump: return "Jump"
+        case .core: return "Core"
+        case .rotation: return "Rotation"
+        case .lunge: return "Lunge"
+        case .fullBody: return "Full body"
+        case .olympic: return "Weightlifting (Oly)"
+        case .monostructural: return "Monostructural"
         }
     }
 }
@@ -78,6 +114,34 @@ enum Equipment: String, Codable, CaseIterable, Hashable {
         case .yoke: return "Yoke (jho)"
         case .battleRope: return "Battle rope"
         case .none: return "Bez vybavení"
+        }
+    }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        switch self {
+        case .barbell: return "Barbell"
+        case .rack: return "Rack"
+        case .pullUpBar: return "Pull-up bar"
+        case .rings: return "Rings"
+        case .ghd: return "GHD"
+        case .box: return "Box"
+        case .jumpRope: return "Jump rope"
+        case .rope: return "Climbing rope"
+        case .rower: return "Rower"
+        case .bikeErg: return "Bike erg"
+        case .assaultBike: return "Assault bike"
+        case .skiErg: return "SkiErg"
+        case .kettlebell: return "Kettlebell"
+        case .dumbbell: return "Dumbbell"
+        case .wallBall: return "Wall ball"
+        case .sandbag: return "Sandbag"
+        case .sled: return "Sled"
+        case .stone: return "Atlas stone"
+        case .tire: return "Tire"
+        case .yoke: return "Yoke"
+        case .battleRope: return "Battle rope"
+        case .none: return "No equipment"
         }
     }
 }
@@ -143,6 +207,11 @@ enum Gender: String, Codable, CaseIterable, Hashable {
     case female = "F"
 
     var label: String { self == .male ? "Muž" : "Žena" }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        return self == .male ? "Male" : "Female"
+    }
 }
 
 enum Goal: String, Codable, CaseIterable, Hashable {
@@ -159,6 +228,16 @@ enum Goal: String, Codable, CaseIterable, Hashable {
         case .skill: return "Skill"
         }
     }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        switch self {
+        case .strength: return "Strength"
+        case .condition: return "Conditioning"
+        case .weightLoss: return "Weight loss"
+        case .skill: return "Skill"
+        }
+    }
 }
 
 enum DayType: String, Codable, CaseIterable, Hashable {
@@ -171,6 +250,17 @@ enum DayType: String, Codable, CaseIterable, Hashable {
         case .monostructural: return "Engine / monostrukturální"
         case .chipper: return "Objemový metcon"
         case .rest: return "Odpočinek"
+        }
+    }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        switch self {
+        case .strength: return "Weightlifting / strength"
+        case .gymnastics: return "Gymnastics + EMOM"
+        case .monostructural: return "Engine / monostructural"
+        case .chipper: return "Volume metcon"
+        case .rest: return "Rest"
         }
     }
 }
@@ -191,6 +281,21 @@ enum WorkoutFormat: String, Codable, CaseIterable, Hashable {
         case .intervals: return "Intervaly"
         case .steady: return "Steady state"
         case .rest: return "Odpočinek"
+        }
+    }
+
+    func label(_ lang: AppLanguage) -> String {
+        guard lang == .en else { return label }
+        switch self {
+        case .strength: return "Strength"
+        case .emom: return "EMOM"
+        case .amrap: return "AMRAP"
+        case .forTime: return "For Time"
+        case .chipper: return "Chipper"
+        case .tabata: return "Tabata"
+        case .intervals: return "Intervals"
+        case .steady: return "Steady state"
+        case .rest: return "Rest"
         }
     }
 

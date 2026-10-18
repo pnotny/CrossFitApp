@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TimerSheetView: View {
+    @EnvironmentObject var store: AppStore
     let config: TimerConfig
     @StateObject private var engine = TimerEngine()
     @Environment(\.dismiss) private var dismiss
@@ -18,7 +19,7 @@ struct TimerSheetView: View {
                     .foregroundColor(DT.fgMuted)
                     .lineLimit(1)
                 Spacer()
-                Button("Zavřít") { engine.destroy(); dismiss() }
+                Button(store.t("close")) { engine.destroy(); dismiss() }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(DT.accentText)
             }
@@ -48,7 +49,7 @@ struct TimerSheetView: View {
                     Button { engine.decrementRounds() } label: {
                         Image(systemName: "minus.circle.fill").font(.system(size: 28))
                     }
-                    Text("\(engine.rounds) kol")
+                    Text("\(engine.rounds) \(store.t("rounds_short"))")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(DT.fg)
                         .frame(minWidth: 70)
@@ -62,12 +63,12 @@ struct TimerSheetView: View {
 
             HStack(spacing: 12) {
                 Button { engine.reset() } label: {
-                    Text("🔄 Reset")
+                    Text("🔄 \(store.t("reset"))")
                 }
                 .buttonStyle(.dtSecondary)
 
                 Button { engine.toggle() } label: {
-                    Text(engine.running ? "⏸ Pauza" : "▶️ Start")
+                    Text(engine.running ? "⏸ \(store.t("pause"))" : "▶️ \(store.t("start"))")
                 }
                 .buttonStyle(.dtPrimary)
             }
@@ -75,7 +76,7 @@ struct TimerSheetView: View {
         }
         .padding(24)
         .background(DT.bg)
-        .onAppear { engine.configure(config) }
+        .onAppear { engine.configure(config, language: store.language) }
         .onDisappear { engine.destroy() }
         .presentationDetents([.medium, .large])
     }
