@@ -119,11 +119,11 @@ final class TimerEngine: ObservableObject {
             phaseKind = .normal
             subText = config.exercises.isEmpty ? "" : "Na řadě: \(config.exercises[minuteIdx % config.exercises.count])"
             if elapsed >= totalSec {
-                if running { play(TimerSound.done); stop() }
+                if running { play { TimerSound.done() }; stop() }
             } else if running && secIntoMin == 0 && elapsed > 0 {
-                play(TimerSound.notify)
+                play { TimerSound.notify() }
             } else if running && secLeft <= 3 && secLeft > 0 {
-                play(TimerSound.tick)
+                play { TimerSound.tick() }
             }
 
         case .amrap:
@@ -133,7 +133,7 @@ final class TimerEngine: ObservableObject {
             phaseText = left <= 0 ? "✅ Čas vypršel" : "AMRAP"
             phaseKind = .normal
             subText = "Cíl: \(config.durationMin) min"
-            if left <= 0, running { play(TimerSound.done); stop() }
+            if left <= 0, running { play { TimerSound.done() }; stop() }
 
         case .forTime, .chipper:
             let capSec = parseCapSeconds()
@@ -142,7 +142,7 @@ final class TimerEngine: ObservableObject {
             phaseText = overCap ? "⏰ Time cap" : "FOR TIME"
             phaseKind = overCap ? .warn : .normal
             subText = "Time cap: \(fmt(capSec))"
-            if overCap, running { play(TimerSound.done); stop() }
+            if overCap, running { play { TimerSound.done() }; stop() }
 
         case .tabata:
             let cycle = 30
@@ -152,7 +152,7 @@ final class TimerEngine: ObservableObject {
                 phaseText = "✅ Hotovo"
                 phaseKind = .normal
                 subText = "8/8 kol"
-                if running { play(TimerSound.done); stop() }
+                if running { play { TimerSound.done() }; stop() }
                 return
             }
             let round = elapsed / cycle + 1
@@ -163,7 +163,7 @@ final class TimerEngine: ObservableObject {
             phaseText = isWork ? "🔥 PRÁCE" : "😮\u{200D}💨 ODPOČINEK"
             phaseKind = isWork ? .work : .rest
             subText = "Kolo \(round) / 8"
-            if running && left == 1 { play(TimerSound.notify) }
+            if running && left == 1 { play { TimerSound.notify() } }
 
         default:
             let targetSec = config.durationMin * 60
@@ -171,7 +171,7 @@ final class TimerEngine: ObservableObject {
             phaseText = config.format == .rest ? "ODPOČINEK" : "STOPKY"
             phaseKind = .normal
             subText = targetSec > 0 ? "Cíl: \(fmt(targetSec))" : ""
-            if targetSec > 0 && elapsed == targetSec && running { play(TimerSound.notify) }
+            if targetSec > 0 && elapsed == targetSec && running { play { TimerSound.notify() } }
         }
     }
 }
