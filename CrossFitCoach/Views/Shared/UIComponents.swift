@@ -66,7 +66,10 @@ struct SegmentedPicker<T: Hashable>: View {
                 } label: {
                     Text(opt.label)
                         .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
                         .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 2)
                         .padding(.vertical, 8)
                         .background(selection == opt.value ? Color(.systemBackground) : Color.clear)
                         .foregroundColor(selection == opt.value ? .primary : .secondary)
