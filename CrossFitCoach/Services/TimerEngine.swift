@@ -6,11 +6,11 @@ import Combine
 /// bezpečnější a spolehlivější než vlastní generátor tónu, žádné bundlované soubory.
 enum TimerSound {
     /// Krátké, nevýrazné "tik" — odpočet posledních vteřin.
-    static func tick() { AudioServicesPlaySystemSound(1103) }
+    nonisolated static func tick() { AudioServicesPlaySystemSound(1103) }
     /// Výraznější "ding" — začátek minuty/kola, přechod práce↔odpočinek.
-    static func notify() { AudioServicesPlaySystemSound(1057) }
+    nonisolated static func notify() { AudioServicesPlaySystemSound(1057) }
     /// Dokončovací tón — konec bloku / time cap.
-    static func done() { AudioServicesPlaySystemSound(1005) }
+    nonisolated static func done() { AudioServicesPlaySystemSound(1005) }
 }
 
 enum TimerPhaseKind {

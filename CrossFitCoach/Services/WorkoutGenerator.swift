@@ -49,7 +49,7 @@ enum DateUtils {
         for i in 0..<7 {
             let d = date(from: monday)
             if let shifted = Calendar(identifier: .gregorian).date(byAdding: .day, value: i, to: d) {
-                result.append(dateString(from: shifted))
+                result.append(self.dateString(from: shifted))
             }
         }
         return result
