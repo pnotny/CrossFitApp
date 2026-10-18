@@ -251,6 +251,14 @@ struct ExerciseRowView: View {
         return "\(formatted) \(unit)"
     }
 
+    /// Jasně ukazuje, z čeho se pracovní váha počítá — např. "85% Front Squat 1RM"
+    /// nebo "RX standard", pokud uživatel pro daný cvik maximum nezadal.
+    private var loadSourceText: String {
+        guard let source = exercise.loadSource else { return "" }
+        if let pct = exercise.loadPct { return "\(pct)% \(source)" }
+        return source
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Button(action: onTap) {
@@ -269,8 +277,8 @@ struct ExerciseRowView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.secondary)
                         }
-                        if let pct = exercise.loadPct {
-                            Text("\(pct)% 1RM")
+                        if !loadSourceText.isEmpty {
+                            Text(loadSourceText)
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(.tertiaryLabel))
                         }

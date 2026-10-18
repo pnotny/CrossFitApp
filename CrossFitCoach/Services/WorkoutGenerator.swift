@@ -70,12 +70,24 @@ enum WorkoutGenerator {
         !excluded.contains(exercise.pattern)
     }
 
+    /// Cviky vyhovující vybavení/vyloučeným vzorům a úrovni profilu. Cviky nad
+    /// úrovní atleta se do běžného výběru nedostanou (viz ExerciseDifficulty) —
+    /// výjimkou je max. jeden cvik přesně o úroveň výš, který se příležitostně
+    /// přimíchá jako postupné seznámení s novou dovedností (s odpovídající
+    /// výukovou lekcí, protože toWorkoutExercise vždy zobrazí popis podle
+    /// AKTUÁLNÍ úrovně atleta, ne podle cviku).
     static func filterPool(_ profile: AthleteProfile, categories: [MovementCategory]?) -> [Exercise] {
-        ExerciseDatabase.all.filter { ex in
+        let eligible = ExerciseDatabase.all.filter { ex in
             (categories == nil || categories!.contains(ex.category)) &&
             equipmentOk(ex, profile.equipment) &&
             patternAllowed(ex, profile.excludedPatterns)
         }
+        let tier = profile.level.tier
+        let core = eligible.filter { ExerciseDifficulty.isCore($0, for: tier) }
+        guard tier != .rx else { return core }
+        let intro = ExerciseDifficulty.introductionCandidates(eligible, for: tier)
+        guard !intro.isEmpty, Double.random(in: 0..<1) < 0.25, let pick = intro.randomElement() else { return core }
+        return core + [pick]
     }
 
     static func yesterdayPatterns(_ history: [Workout], _ dateString: String) -> [MovementPattern] {
@@ -193,7 +205,8 @@ enum WorkoutGenerator {
 
         if let key = exercise.oneRMKey, let oneRM = profile.oneRM[key] {
             let weight = roundToStep(oneRM * exercise.variantMultiplier * pct, step)
-            return LoadResult(weight: weight, unit: "kg", source: "1RM", pct: Int((pct * 100).rounded()), autoregAdj: adj)
+            let liftLabel = OneRepMaxes.liftLabels.first(where: { $0.key == key })?.label ?? key
+            return LoadResult(weight: weight, unit: "kg", source: "\(liftLabel) 1RM", pct: Int((pct * 100).rounded()), autoregAdj: adj)
         }
         if let standard = exercise.standard {
             let tier = profile.level.tier

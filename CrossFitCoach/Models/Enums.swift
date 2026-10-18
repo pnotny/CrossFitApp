@@ -106,6 +106,16 @@ enum AthleteLevel: String, Codable, CaseIterable, Hashable {
         }
     }
 
+    /// Další úroveň v postupu (nil u RX — dál už není kam postupovat).
+    var next: AthleteLevel? {
+        switch self {
+        case .beginner: return .intermediate
+        case .intermediate: return .advanced
+        case .advanced: return .rx
+        case .rx: return nil
+        }
+    }
+
     /// Mapuje 4 úrovně profilu na 3 úrovně cviků v databázi (stejně jako levelTier() v generator.js).
     var tier: LevelTier {
         switch self {

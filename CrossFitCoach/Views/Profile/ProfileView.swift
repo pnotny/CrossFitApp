@@ -5,6 +5,8 @@ struct ProfileView: View {
     @State private var draft = AthleteProfile()
     @State private var oneRMText: [String: String] = [:]
     @State private var stravaWorkerUrl = ""
+    @State private var showLevelUpConfirm = false
+    @State private var levelUpDismissed = false
 
     private static let dayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
     private static let preferredFormatOptions: [WorkoutFormat] = [.emom, .amrap, .forTime, .chipper, .tabata, .intervals, .steady]
@@ -14,6 +16,9 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     basicsCard
+                    if let suggestion = levelUpSuggestion {
+                        levelUpCard(suggestion)
+                    }
                     oneRMCard
                     equipmentCard
                     excludedPatternsCard
@@ -88,6 +93,47 @@ struct ProfileView: View {
             SegmentedPicker(options: AthleteLevel.allCases.map { ($0, $0.label) }, selection: $draft.level)
         }
         .cardStyle()
+    }
+
+    // MARK: - Posun na další úroveň (jen návrh, nikdy automaticky)
+
+    /// Kolik odcvičených (uložených) tréninků typicky stačí, než má smysl
+    /// zvážit posun na další úroveň — hrubý odhad, ne tvrdé kritérium.
+    private static let levelUpThresholds: [AthleteLevel: Int] = [.beginner: 12, .intermediate: 24, .advanced: 36]
+
+    private var levelUpSuggestion: AthleteLevel? {
+        guard !levelUpDismissed, draft.level == store.profile.level, let next = draft.level.next else { return nil }
+        guard let threshold = Self.levelUpThresholds[draft.level] else { return nil }
+        return store.history.count >= threshold ? next : nil
+    }
+
+    private func levelUpCard(_ next: AthleteLevel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.up.circle.fill").foregroundColor(.accentColor)
+                Text("Čas na posun?").font(.system(size: 14, weight: .bold))
+            }
+            Text("Trénuješ už \(store.history.count) tréninků na úrovni \(draft.level.label). Zvaž posun na \(next.label) — cviky i váhy se tomu přizpůsobí, ale nic se nezmění bez tvého potvrzení.")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+            HStack(spacing: 10) {
+                Button("Teď ne") { levelUpDismissed = true }
+                    .buttonStyle(.bordered)
+                Button("Přejít na \(next.label)") { showLevelUpConfirm = true }
+                    .buttonStyle(.borderedProminent)
+            }
+            .font(.system(size: 13, weight: .semibold))
+        }
+        .cardStyle()
+        .alert("Přejít na \(next.label)?", isPresented: $showLevelUpConfirm) {
+            Button("Zrušit", role: .cancel) {}
+            Button("Přejít") {
+                draft.level = next
+                store.saveProfile(draft)
+            }
+        } message: {
+            Text("Příští tréninky budou počítat s úrovní \(next.label) — náročnější cviky i vyšší pracovní váhy.")
+        }
     }
 
     // MARK: - 1RM

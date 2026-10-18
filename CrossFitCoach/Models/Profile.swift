@@ -38,7 +38,7 @@ struct OneRepMaxes: Codable, Hashable {
 
     static let liftLabels: [(key: String, label: String)] = [
         ("backSquat", "Back Squat"), ("frontSquat", "Front Squat"), ("deadlift", "Deadlift"),
-        ("clean", "Clean"), ("snatch", "Snatch"), ("press", "Shoulder Press")
+        ("clean", "Clean & Jerk"), ("snatch", "Snatch"), ("press", "Shoulder Press")
     ]
 }
 
