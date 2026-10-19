@@ -151,12 +151,25 @@ final class AppStore: ObservableObject {
 
     // MARK: Trénink pro aktuálně zobrazený den
 
+    /// Náhledy (zatím neuložených) tréninků podle data, jen v paměti pro aktuální
+    /// běh appky — bez tohohle by se při každém návratu na den bez uloženého
+    /// tréninku losoval úplně nový trénink, takže by se při procházení historie
+    /// "Pondělí" nikdy neshodovalo samo se sebou. Vymaže se, kdykoli se mění
+    /// profil/jazyk/délka (viz `regenerateForCurrentProfile`), protože staré
+    /// náhledy by pak už neodpovídaly.
+    private var draftWorkoutsByDate: [String: Workout] = [:]
+
     func loadOrGenerateWorkout() {
         if let saved = storage.getWorkout(for: viewDate) {
             currentWorkout = saved
             currentWorkoutSaved = true
+        } else if let draft = draftWorkoutsByDate[viewDate] {
+            currentWorkout = draft
+            currentWorkoutSaved = false
         } else {
-            currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
+            let generated = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
+            draftWorkoutsByDate[viewDate] = generated
+            currentWorkout = generated
             currentWorkoutSaved = false
         }
         editMode = false
@@ -164,16 +177,22 @@ final class AppStore: ObservableObject {
     }
 
     func regenerate() {
-        currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
+        let generated = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
+        draftWorkoutsByDate[viewDate] = generated
+        currentWorkout = generated
         currentWorkoutSaved = false
         toast(t("workout_regenerated"))
         refreshAICoachNotes()
     }
 
-    /// Po uložení profilu vždy přegeneruje, aby se nové údaje hned projevily
-    /// (i když už pro daný den existuje uložený trénink z historie).
+    /// Po uložení profilu / změně jazyka / délky tréninku vždy přegeneruje, aby se
+    /// nové údaje hned projevily (i když už pro daný den existuje uložený trénink
+    /// z historie). Zahodí i náhledy ostatních dní — s novým profilem už neplatí.
     func regenerateForCurrentProfile() {
-        currentWorkout = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
+        draftWorkoutsByDate.removeAll()
+        let generated = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
+        draftWorkoutsByDate[viewDate] = generated
+        currentWorkout = generated
         currentWorkoutSaved = false
         editMode = false
         refreshAICoachNotes()
