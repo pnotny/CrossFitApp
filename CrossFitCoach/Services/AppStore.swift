@@ -202,15 +202,42 @@ final class AppStore: ObservableObject {
         refreshAICoachNotes()
     }
 
-    /// Po uložení profilu / změně jazyka / délky tréninku vždy přegeneruje, aby se
-    /// nové údaje hned projevily (i když už pro daný den existuje uložený trénink
-    /// z historie). Zahodí i náhledy ostatních dní — s novým profilem už neplatí.
+    /// Po uložení profilu / změně délky tréninku vždy přegeneruje, aby se nové údaje
+    /// hned projevily (i když už pro daný den existuje uložený trénink z historie).
+    /// Zahodí i náhledy ostatních dní — s novým profilem už neplatí. Nové parametry
+    /// (vybavení, cíl, délka...) legitimně mění, JAKÉ cviky se vyberou, takže tu na
+    /// rozdíl od `regenerateForLanguageChange` jde o úplně nový (náhodný) výběr.
     func regenerateForCurrentProfile() {
         draftWorkoutsByDate.removeAll()
         let generated = WorkoutGenerator.generateWorkout(profile: profile, dateString: viewDate, history: history, language: language)
         draftWorkoutsByDate[viewDate] = generated
         currentWorkout = generated
         currentWorkoutSaved = false
+        editMode = false
+        refreshAICoachNotes()
+    }
+
+    /// Jazyk nemění, JAKÉ cviky se vyberou — jen jak se to, co bylo vybráno dřív,
+    /// napíše. Proto se tu (na rozdíl od `regenerateForCurrentProfile`) generátor
+    /// spustí znovu se STEJNÝM `variantSeed`, jaký měl už vygenerovaný trénink —
+    /// vyjde tak bit přesně stejný výběr cviků, jen přeložený text, místo aby se
+    /// trénink při každém přepnutí jazyka znovu (a jinak) vylosoval.
+    private func relabeled(_ workout: Workout) -> Workout {
+        // Ručně upravený trénink (swap cviku, přepsané opakování/váha — viz `edited`)
+        // se nepřegeneruje vůbec, jinak by přepnutí jazyka tiše smazalo tu úpravu.
+        guard !workout.edited else { return workout }
+        return WorkoutGenerator.generateWorkout(
+            profile: profile, dateString: workout.date, history: history, language: language, seed: workout.variantSeed
+        )
+    }
+
+    func regenerateForLanguageChange() {
+        draftWorkoutsByDate = draftWorkoutsByDate.mapValues(relabeled)
+        if let current = currentWorkout, !currentWorkoutSaved {
+            let updated = relabeled(current)
+            draftWorkoutsByDate[viewDate] = updated
+            currentWorkout = updated
+        }
         editMode = false
         refreshAICoachNotes()
     }
@@ -346,16 +373,27 @@ final class AppStore: ObservableObject {
         syncUp()
     }
 
+    /// Uloží upravený trénink do `currentWorkout` a (dokud není uložený do historie)
+    /// i do `draftWorkoutsByDate`, ať se ruční úprava neztratí při odskoku na jiný
+    /// den a návratu zpět — bez tohohle by `loadOrGenerateWorkout` načetl zpátky
+    /// starý (neupravený) náhled z cache.
+    private func updateCurrentWorkout(_ workout: Workout) {
+        currentWorkout = workout
+        if !currentWorkoutSaved { draftWorkoutsByDate[viewDate] = workout }
+    }
+
     func updateReps(blockIndex: Int, exerciseIndex: Int, reps: String) {
         guard var w = currentWorkout, blockIndex < w.blocks.count, exerciseIndex < w.blocks[blockIndex].exercises.count else { return }
         w.blocks[blockIndex].exercises[exerciseIndex].reps = reps
-        currentWorkout = w
+        w.edited = true
+        updateCurrentWorkout(w)
     }
 
     func updateWeight(blockIndex: Int, exerciseIndex: Int, weight: Double) {
         guard var w = currentWorkout, blockIndex < w.blocks.count, exerciseIndex < w.blocks[blockIndex].exercises.count else { return }
         w.blocks[blockIndex].exercises[exerciseIndex].weight = weight
-        currentWorkout = w
+        w.edited = true
+        updateCurrentWorkout(w)
     }
 
     func swapExercise(blockIndex: Int, exerciseIndex: Int, newExercise: Exercise) {
@@ -371,7 +409,11 @@ final class AppStore: ObservableObject {
             reps: current.reps, weight: load?.weight, unit: load?.unit, loadSource: load?.source, loadPct: load?.pct,
             autoregAdj: load?.autoregAdj, cues: newExercise.cues, mistakes: newExercise.mistakes, note: current.note
         )
-        currentWorkout = w
+        // Ruční zásah uživatele — `regenerateForLanguageChange` tenhle trénink
+        // kvůli přepnutí jazyka znovu nevygeneruje (tím by o swap zase přišel),
+        // viz `edited`.
+        w.edited = true
+        updateCurrentWorkout(w)
         toast(t("exercise_swapped"))
         refreshAICoachNote(forBlockIndex: blockIndex)
     }
@@ -381,10 +423,13 @@ final class AppStore: ObservableObject {
         let block = w.blocks[blockIndex]
         let current = block.exercises[exerciseIndex]
         let usedIds = Set(block.exercises.map(\.exerciseId))
-        let byPattern = WorkoutGenerator.filterPool(profile, categories: nil)
+        // Jen výběr kandidátů pro UI, ne skutečná generace tréninku — náhodnost tu
+        // nijak nevadí, stačí nový seed pro každé zavolání.
+        var rng = SeededGenerator(seed: UInt64.random(in: UInt64.min...UInt64.max))
+        let byPattern = WorkoutGenerator.filterPool(profile, categories: nil, using: &rng)
             .filter { $0.pattern == current.pattern && !usedIds.contains($0.id) }
         if !byPattern.isEmpty { return byPattern }
-        return WorkoutGenerator.filterPool(profile, categories: [current.category]).filter { !usedIds.contains($0.id) }
+        return WorkoutGenerator.filterPool(profile, categories: [current.category], using: &rng).filter { !usedIds.contains($0.id) }
     }
 
     // MARK: Profil
@@ -573,7 +618,7 @@ final class AppStore: ObservableObject {
     func cycleLanguage() {
         language = language == .cs ? .en : .cs
         storage.setLanguage(language)
-        regenerateForCurrentProfile()
+        regenerateForLanguageChange()
         syncUp()
         if language == .en {
             Task { await warmExerciseTranslationsIfNeeded() }

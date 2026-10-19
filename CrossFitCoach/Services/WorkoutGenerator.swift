@@ -56,6 +56,22 @@ enum DateUtils {
     }
 }
 
+/// Jednoduchý seedovatelný PRNG (xorshift64) — `SystemRandomNumberGenerator` ze
+/// standardní knihovny se seedovat nedá, a bez toho by každé spuštění generátoru
+/// (i se stejným profilem/dnem) vylosovalo jiné cviky. Používá se výhradně k tomu,
+/// aby přepnutí jazyka znovu vyrenderovalo STEJNÝ trénink v jiném jazyce, místo aby
+/// ho znovu (a jinak) vylosovalo — viz `Workout.variantSeed` a `generateWorkout`.
+struct SeededGenerator: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed == 0 ? 0x9E3779B97F4A7C15 : seed }
+    mutating func next() -> UInt64 {
+        state ^= state << 13
+        state ^= state >> 7
+        state ^= state << 17
+        return state
+    }
+}
+
 // MARK: - Generátor tréninků (port js/generator.js)
 
 enum WorkoutGenerator {
@@ -76,7 +92,7 @@ enum WorkoutGenerator {
     /// přimíchá jako postupné seznámení s novou dovedností (s odpovídající
     /// výukovou lekcí, protože toWorkoutExercise vždy zobrazí popis podle
     /// AKTUÁLNÍ úrovně atleta, ne podle cviku).
-    static func filterPool(_ profile: AthleteProfile, categories: [MovementCategory]?) -> [Exercise] {
+    static func filterPool(_ profile: AthleteProfile, categories: [MovementCategory]?, using rng: inout SeededGenerator) -> [Exercise] {
         let eligible = ExerciseDatabase.all.filter { ex in
             (categories == nil || categories!.contains(ex.category)) &&
             equipmentOk(ex, profile.equipment) &&
@@ -86,7 +102,7 @@ enum WorkoutGenerator {
         let core = eligible.filter { ExerciseDifficulty.isCore($0, for: tier) }
         guard tier != .rx else { return core }
         let intro = ExerciseDifficulty.introductionCandidates(eligible, for: tier)
-        guard !intro.isEmpty, Double.random(in: 0..<1) < 0.25, let pick = intro.randomElement() else { return core }
+        guard !intro.isEmpty, Double.random(in: 0..<1, using: &rng) < 0.25, let pick = intro.randomElement(using: &rng) else { return core }
         return core + [pick]
     }
 
@@ -140,16 +156,16 @@ enum WorkoutGenerator {
         exercise.muscles.reduce(0) { $0 + (loadMap[$1] ?? 0) }
     }
 
-    static func leastLoadedPick(_ candidates: [Exercise], _ muscleLoad: [String: Int]?) -> Exercise? {
+    static func leastLoadedPick(_ candidates: [Exercise], _ muscleLoad: [String: Int]?, using rng: inout SeededGenerator) -> Exercise? {
         guard !candidates.isEmpty else { return nil }
-        guard let muscleLoad, !muscleLoad.isEmpty else { return candidates.randomElement() }
+        guard let muscleLoad, !muscleLoad.isEmpty else { return candidates.randomElement(using: &rng) }
         let scored = candidates.map { ($0, muscleOverlapScore($0, muscleLoad)) }
         let minScore = scored.map(\.1).min() ?? 0
         let best = scored.filter { $0.1 == minScore }.map(\.0)
-        return best.randomElement()
+        return best.randomElement(using: &rng)
     }
 
-    static func pickExercises(_ pool: [Exercise], count: Int, avoidPatterns: [MovementPattern], muscleLoad: [String: Int]?) -> [Exercise] {
+    static func pickExercises(_ pool: [Exercise], count: Int, avoidPatterns: [MovementPattern], muscleLoad: [String: Int]?, using rng: inout SeededGenerator) -> [Exercise] {
         var usedPatterns = Set<MovementPattern>()
         var usedIds = Set<String>()
         var result: [Exercise] = []
@@ -159,7 +175,7 @@ enum WorkoutGenerator {
             if filtered.isEmpty { filtered = pool.filter { !usedIds.contains($0.id) && !usedPatterns.contains($0.pattern) } }
             if filtered.isEmpty { filtered = pool.filter { !usedIds.contains($0.id) } }
             if filtered.isEmpty { break }
-            guard let pick = leastLoadedPick(filtered, muscleLoad) else { break }
+            guard let pick = leastLoadedPick(filtered, muscleLoad, using: &rng) else { break }
             result.append(pick)
             usedIds.insert(pick.id)
             usedPatterns.insert(pick.pattern)
@@ -274,10 +290,10 @@ enum WorkoutGenerator {
 
     static func clampInt(_ t: Int, _ lo: Int, _ hi: Int) -> Int { max(lo, min(hi, t)) }
 
-    static func pickMetconFormat(_ candidates: [WorkoutFormat], _ profile: AthleteProfile) -> WorkoutFormat {
+    static func pickMetconFormat(_ candidates: [WorkoutFormat], _ profile: AthleteProfile, using rng: inout SeededGenerator) -> WorkoutFormat {
         let preferred = candidates.filter { profile.preferredFormats.contains($0) }
         let pool = preferred.isEmpty ? candidates : preferred
-        return pool.randomElement() ?? candidates[0]
+        return pool.randomElement(using: &rng) ?? candidates[0]
     }
 
     static func strengthSetsScheme(_ level: AthleteLevel, _ language: AppLanguage = .cs) -> (sets: Int, reps: Int, label: String) {
@@ -297,13 +313,13 @@ enum WorkoutGenerator {
 
     // MARK: Stavba jednotlivých typů dne
 
-    static func buildStrengthDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs) -> [WorkoutBlock] {
+    static func buildStrengthDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let pool = filterPool(profile, categories: [.weightlifting]).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
+        let pool = filterPool(profile, categories: [.weightlifting], using: &rng).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
         let mainCandidates = pool.filter { !avoid.contains($0.pattern) }
         let mainPool = mainCandidates.isEmpty ? pool : mainCandidates
-        let main = leastLoadedPick(mainPool, muscleLoad)
+        let main = leastLoadedPick(mainPool, muscleLoad, using: &rng)
 
         let total = profile.timeAvailable
         let strengthMin = clampInt(Int((Double(total) * 0.4 / 5).rounded()) * 5, 12, 40)
@@ -325,21 +341,21 @@ enum WorkoutGenerator {
         }
 
         let metconMinutes = clampInt(total - (main != nil ? strengthMin : 0), 8, 60)
-        let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
+        let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], using: &rng)
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: language == .en ? "Block B · Metcon" : "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
-            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language
+            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language, using: &rng
         ))
         return blocks
     }
 
-    static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs) -> [WorkoutBlock] {
+    static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let skillPool = filterPool(profile, categories: [.gymnastics]).filter { !avoid.contains($0.pattern) }
-        let skillCandidates = skillPool.isEmpty ? filterPool(profile, categories: [.gymnastics]) : skillPool
-        let skillPick = leastLoadedPick(skillCandidates, muscleLoad)
+        let skillPool = filterPool(profile, categories: [.gymnastics], using: &rng).filter { !avoid.contains($0.pattern) }
+        let skillCandidates = skillPool.isEmpty ? filterPool(profile, categories: [.gymnastics], using: &rng) : skillPool
+        let skillPick = leastLoadedPick(skillCandidates, muscleLoad, using: &rng)
 
         let total = profile.timeAvailable
         let skillMin = clampInt(Int((Double(total) * 0.3 / 5).rounded()) * 5, 8, 25)
@@ -359,16 +375,16 @@ enum WorkoutGenerator {
         }
 
         let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0), 8, 65)
-        let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman])
+        let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman], using: &rng)
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: language == .en ? "Block B · EMOM" : "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
-            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language
+            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language, using: &rng
         ))
         return blocks
     }
 
-    static func buildMonostructuralDay(_ profile: AthleteProfile, _ language: AppLanguage = .cs) -> [WorkoutBlock] {
-        let pool = filterPool(profile, categories: [.monostructural])
+    static func buildMonostructuralDay(_ profile: AthleteProfile, _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
+        let pool = filterPool(profile, categories: [.monostructural], using: &rng)
         let total = clampInt(profile.timeAvailable, 12, 90)
         guard !pool.isEmpty else {
             return [WorkoutBlock(
@@ -380,8 +396,8 @@ enum WorkoutGenerator {
             )]
         }
         let candidateFormats: [WorkoutFormat] = total <= 20 ? [.tabata, .intervals] : [.intervals, .steady]
-        let format = pickMetconFormat(candidateFormats, profile)
-        guard let pick = pool.randomElement() else { return [] }
+        let format = pickMetconFormat(candidateFormats, profile, using: &rng)
+        guard let pick = pool.randomElement(using: &rng) else { return [] }
         var wEx = toWorkoutExercise(pick, profile, purpose: .metcon, reps: "", note: "", autoreg: [:])
 
         if format == .tabata {
@@ -409,13 +425,13 @@ enum WorkoutGenerator {
         )]
     }
 
-    static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs) -> [WorkoutBlock] {
+    static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting])
+        let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], using: &rng)
         let timeCap = clampInt(profile.timeAvailable, 15, 90)
         let count = clampInt(Int((Double(timeCap) / 6).rounded()), 4, 8)
-        let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad)
+        let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad, using: &rng)
         let baseReps = [50, 40, 35, 30, 25, 20, 15, 10]
         let exercises = picks.enumerated().map { i, ex in
             toWorkoutExercise(ex, profile, purpose: .metcon, reps: String(i < baseReps.count ? baseReps[i] : 15), note: "", autoreg: autoreg)
@@ -481,9 +497,9 @@ enum WorkoutGenerator {
     static func buildMetconSegments(
         titlePrefix: String, formatCandidates: [WorkoutFormat], pool: [Exercise], profile: AthleteProfile,
         totalMinutes: Int, baseAvoidPatterns: [MovementPattern], muscleLoad: [String: Int], autoreg: [LoadPurpose: Int],
-        exercisesPerSegment: Int = 3, language: AppLanguage = .cs
+        exercisesPerSegment: Int = 3, language: AppLanguage = .cs, using rng: inout SeededGenerator
     ) -> [WorkoutBlock] {
-        let format = pickMetconFormat(formatCandidates, profile)
+        let format = pickMetconFormat(formatCandidates, profile, using: &rng)
         let numSegments = totalMinutes > 22 ? clampInt(Int((Double(totalMinutes) / 15).rounded()), 2, 4) : 1
         let segMinutes = clampInt(Int((Double(totalMinutes) / Double(numSegments) / 5).rounded()) * 5, 8, 20)
 
@@ -494,7 +510,7 @@ enum WorkoutGenerator {
         for i in 0..<numSegments {
             var segPool = pool.filter { !cumulativeIds.contains($0.id) }
             if segPool.count < exercisesPerSegment { segPool = pool }
-            let picks = pickExercises(segPool, count: exercisesPerSegment, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad)
+            let picks = pickExercises(segPool, count: exercisesPerSegment, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad, using: &rng)
             let label = numSegments > 1 ? "\(titlePrefix) · \(i + 1)/\(numSegments)" : titlePrefix
             var block = buildMetconBlock(title: label, format: format, picks: picks, profile: profile, minutes: segMinutes, autoreg: autoreg, language: language)
             if numSegments > 1 {
@@ -518,7 +534,15 @@ enum WorkoutGenerator {
 
     // MARK: Veřejné API
 
-    static func generateWorkout(profile: AthleteProfile, dateString: String, history: [Workout], language: AppLanguage = .cs) -> Workout {
+    /// `seed`: nil = úplně nový (náhodný) výběr cviků, jako při prvním vygenerování
+    /// dne nebo explicitním "Přegenerovat". Když se předá seed z dřívějšího
+    /// `Workout.variantSeed`, generátor se stejným profilem/dnem/historií vylosuje
+    /// BIT PŘESNĚ stejné cviky znovu — používá se při přepnutí jazyka, kdy se má
+    /// změnit jen text, ne obsah tréninku (viz `AppStore.regenerateForLanguageChange`).
+    static func generateWorkout(profile: AthleteProfile, dateString: String, history: [Workout], language: AppLanguage = .cs, seed: UInt64? = nil) -> Workout {
+        let resolvedSeed = seed ?? UInt64.random(in: UInt64.min...UInt64.max)
+        var rng = SeededGenerator(seed: resolvedSeed)
+
         let dayIdx = DateUtils.weekdayIndex(dateString)
         let dayType = dayIdx < profile.weeklyTemplate.count ? profile.weeklyTemplate[dayIdx] : .rest
 
@@ -532,24 +556,24 @@ enum WorkoutGenerator {
                         ? "Light stretching, hip and shoulder mobility, a walk. No intense load."
                         : "Lehké strečování, mobilita kyčlí a ramen, procházka. Žádná intenzivní zátěž."
                 )],
-                estKcal: 60, generatedAt: Date(), edited: false, rpe: nil
+                estKcal: 60, generatedAt: Date(), edited: false, rpe: nil, variantSeed: resolvedSeed
             )
         }
 
         let autoreg = computeAutoreg(history, profile)
         let blocks: [WorkoutBlock]
         switch dayType {
-        case .strength: blocks = buildStrengthDay(profile, dateString, history, autoreg, language)
-        case .gymnastics: blocks = buildGymnasticsDay(profile, dateString, history, autoreg, language)
-        case .monostructural: blocks = buildMonostructuralDay(profile, language)
-        case .chipper: blocks = buildChipperDay(profile, dateString, history, autoreg, language)
+        case .strength: blocks = buildStrengthDay(profile, dateString, history, autoreg, language, using: &rng)
+        case .gymnastics: blocks = buildGymnasticsDay(profile, dateString, history, autoreg, language, using: &rng)
+        case .monostructural: blocks = buildMonostructuralDay(profile, language, using: &rng)
+        case .chipper: blocks = buildChipperDay(profile, dateString, history, autoreg, language, using: &rng)
         case .rest: blocks = [] // nedosažitelné, ošetřeno výše
         }
 
         return Workout(
             date: dateString, dayType: dayType, dayTypeLabel: dayType.label(language), blocks: blocks,
             estKcal: estimateCalories(blocks, bodyweight: profile.bodyweight),
-            generatedAt: Date(), edited: false, rpe: nil
+            generatedAt: Date(), edited: false, rpe: nil, variantSeed: resolvedSeed
         )
     }
 

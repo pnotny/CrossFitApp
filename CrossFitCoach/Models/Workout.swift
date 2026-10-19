@@ -46,6 +46,12 @@ struct Workout: Codable, Hashable, Identifiable {
     /// nemají a synthetizovaný Decodable chybějící klíč u ne-optional typu
     /// odmítne (celá historie by se tím tiše vynulovala).
     var completed: Bool?
+    /// Seed náhodnosti, se kterou generátor tenhle trénink vylosoval — Optional kvůli
+    /// starším uloženým tréninkům bez tohoto pole (viz `completed` výše). Umožňuje
+    /// přepnutí jazyka (`AppStore.regenerateForLanguageChange`) znovu spustit generátor
+    /// se STEJNÝM seedem a dostat bit přesně stejný výběr cviků, jen přeložený text,
+    /// místo aby se cviky při každém přepnutí jazyka znovu (a jinak) vylosovaly.
+    var variantSeed: UInt64?
 
     var id: String { date }
     var totalMinutes: Int { blocks.reduce(0) { $0 + $1.durationMin } }
