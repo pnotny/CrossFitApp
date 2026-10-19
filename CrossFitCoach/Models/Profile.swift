@@ -9,6 +9,7 @@ struct OneRepMaxes: Codable, Hashable {
     var clean: Double?
     var snatch: Double?
     var press: Double?
+    var benchPress: Double?
 
     /// Dynamický přístup podle klíče (odpovídá `profile.oneRM[key]` v JS), použito generátorem.
     subscript(key: String) -> Double? {
@@ -20,6 +21,7 @@ struct OneRepMaxes: Codable, Hashable {
             case "clean": return clean
             case "snatch": return snatch
             case "press": return press
+            case "benchPress": return benchPress
             default: return nil
             }
         }
@@ -31,6 +33,7 @@ struct OneRepMaxes: Codable, Hashable {
             case "clean": clean = newValue
             case "snatch": snatch = newValue
             case "press": press = newValue
+            case "benchPress": benchPress = newValue
             default: break
             }
         }
@@ -38,7 +41,7 @@ struct OneRepMaxes: Codable, Hashable {
 
     static let liftLabels: [(key: String, label: String)] = [
         ("backSquat", "Back Squat"), ("frontSquat", "Front Squat"), ("deadlift", "Deadlift"),
-        ("clean", "Clean & Jerk"), ("snatch", "Snatch"), ("press", "Shoulder Press")
+        ("clean", "Clean & Jerk"), ("snatch", "Snatch"), ("press", "Shoulder Press"), ("benchPress", "Bench Press")
     ]
 }
 

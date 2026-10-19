@@ -214,11 +214,27 @@ enum WorkoutGenerator {
         var autoregAdj: Int
     }
 
-    static func computeLoad(_ exercise: Exercise, _ profile: AthleteProfile, purpose: LoadPurpose, autoreg: [LoadPurpose: Int]) -> LoadResult? {
+    /// %1RM podle plánovaného počtu opakování v sérii — ne tvrdé "1× maximum při
+    /// X opakováních" (to by bylo RM, ne opakovatelná pracovní série), ale
+    /// obvyklá praxe při více pracovních sériích: NSCA load-rep tabulka řadí
+    /// ~87 % k 5RM a ~90 % ke 4RM, Prilepinova tabulka doporučuje pro 2–4
+    /// opakování v sérii pásmo 80–90 %. Několik sérií za sebou proto jde o
+    /// kousek níž, než by šlo jedno maximální opakování na daný počet:
+    /// 3 opak. ≈ 88 %, 4 opak. ≈ 83 %, 5+ opak. ≈ 76 %.
+    private static func strengthPercent(forReps reps: Int?) -> Double {
+        guard let reps else { return 0.80 }
+        switch reps {
+        case ...3: return 0.88
+        case 4: return 0.83
+        default: return 0.76
+        }
+    }
+
+    static func computeLoad(_ exercise: Exercise, _ profile: AthleteProfile, purpose: LoadPurpose, autoreg: [LoadPurpose: Int], repsPerSet: Int? = nil) -> LoadResult? {
         guard exercise.loadable else { return nil }
         var pct: Double
         switch purpose {
-        case .strength: pct = 0.85
+        case .strength: pct = strengthPercent(forReps: repsPerSet)
         case .metcon: pct = 0.5
         case .technique: pct = 0.3
         }
@@ -294,8 +310,8 @@ enum WorkoutGenerator {
             : " Autoregulace dle RPE posledních tréninků: \(sign)\(adj) % z 1RM."
     }
 
-    static func toWorkoutExercise(_ exercise: Exercise, _ profile: AthleteProfile, purpose: LoadPurpose, reps: String, note: String, autoreg: [LoadPurpose: Int]) -> WorkoutExercise {
-        let load = computeLoad(exercise, profile, purpose: purpose, autoreg: autoreg)
+    static func toWorkoutExercise(_ exercise: Exercise, _ profile: AthleteProfile, purpose: LoadPurpose, reps: String, note: String, autoreg: [LoadPurpose: Int], repsPerSet: Int? = nil) -> WorkoutExercise {
+        let load = computeLoad(exercise, profile, purpose: purpose, autoreg: autoreg, repsPerSet: repsPerSet)
         let tier = profile.level.tier
         return WorkoutExercise(
             exerciseId: exercise.id, name: exercise.name, category: exercise.category, pattern: exercise.pattern,
@@ -345,7 +361,7 @@ enum WorkoutGenerator {
 
         if let main {
             let scheme = strengthSetsScheme(profile.level, language)
-            let wEx = toWorkoutExercise(main, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg)
+            let wEx = toWorkoutExercise(main, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg, repsPerSet: scheme.reps)
             usedPatterns.append(main.pattern)
             let weightLabel = wEx.weight != nil ? "\(formatWeight(wEx.weight!)) kg" : (language == .en ? "per standard" : "dle standardu")
             blocks.append(WorkoutBlock(
@@ -370,8 +386,18 @@ enum WorkoutGenerator {
     static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let skillPool = filterPool(profile, categories: [.gymnastics], history: history, dateString: dateString, using: &rng).filter { !avoid.contains($0.pattern) }
-        let skillCandidates = skillPool.isEmpty ? filterPool(profile, categories: [.gymnastics], history: history, dateString: dateString, using: &rng) : skillPool
+        // Blok A je dedikovaný NÍZKOOBJEMOVÝ technický nácvik ("5 × 3–5 kvalitních
+        // opakování") — podle research (NSCA/CrossFit skill-training konvence) tahle
+        // prescribce patří jen skutečným technickým dovednostem (pistol, HSPU,
+        // muscle-up buildup…), ne výbušným/kondičním pohybům ve stejné `.gymnastics`
+        // kategorii (burpee broad jump, box jump…), které nízký objem taky chtějí,
+        // ale formou vyššího počtu kol ve WODu (viz EMOM pool níž), ne jako
+        // samostatný nácvik. Odtud `isSkillPractice` filtr — s odstupňovaným
+        // fallbackem, ať den kvůli vybavení nikdy nezůstane bez kandidáta.
+        let allGymnastics = filterPool(profile, categories: [.gymnastics], history: history, dateString: dateString, using: &rng)
+        let skillOnly = allGymnastics.filter { $0.isSkillPractice }
+        let skillPool = (skillOnly.isEmpty ? allGymnastics : skillOnly).filter { !avoid.contains($0.pattern) }
+        let skillCandidates = skillPool.isEmpty ? (skillOnly.isEmpty ? allGymnastics : skillOnly) : skillPool
         let skillPick = leastLoadedPick(skillCandidates, muscleLoad, using: &rng)
 
         let total = profile.timeAvailable

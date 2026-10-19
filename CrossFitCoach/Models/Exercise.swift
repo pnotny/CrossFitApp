@@ -65,6 +65,16 @@ struct Exercise: Codable, Hashable, Identifiable {
     /// výjimka neuplatní, protože vylučovaný DŮVOD (např. bolest zápěstí při
     /// barbell úchopu) na tuhle variantu neplatí.
     let bypassesPatternExclusion: Bool
+    /// True jen pro cviky, které jsou skutečná technická dovednost vyžadující
+    /// nízký objem kvalitních opakování (pistol squat, HSPU, muscle-up…) — na
+    /// tyhle jde do skill bloku prescribce "5 × 3–5". Výbušné/kondiční cviky ve
+    /// stejné `.gymnastics` kategorii (burpee broad jump, box jump…) nízký
+    /// objem opakování taky chtějí, ale NE formou samostatného technického
+    /// nácviku — patří do metconu/EMOMu, kde na ně vyjde adekvátní vyšší objem
+    /// přes víc kol. Research (NSCA/CrossFit skill-training konvence): rozdíl
+    /// mezi "skill" a "power" podtypem je v tomhle kontextu v tom, KDE se cvik
+    /// cvičí (samostatný nácvik vs. v rámci WODu), ne v počtu opakování na sérii.
+    let isSkillPractice: Bool
 
     init(
         id: String, name: String, category: MovementCategory, pattern: MovementPattern,
@@ -72,7 +82,7 @@ struct Exercise: Codable, Hashable, Identifiable {
         oneRMKey: String? = nil, variantMultiplier: Double = 1,
         standard: LoadStandard? = nil, levels: ExerciseLevels,
         cues: [String], mistakes: [String], standaloneCardioOnly: Bool = false,
-        bypassesPatternExclusion: Bool = false
+        bypassesPatternExclusion: Bool = false, isSkillPractice: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -89,5 +99,6 @@ struct Exercise: Codable, Hashable, Identifiable {
         self.mistakes = mistakes
         self.standaloneCardioOnly = standaloneCardioOnly
         self.bypassesPatternExclusion = bypassesPatternExclusion
+        self.isSkillPractice = isSkillPractice
     }
 }

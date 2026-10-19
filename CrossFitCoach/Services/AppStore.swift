@@ -401,7 +401,12 @@ final class AppStore: ObservableObject {
         let current = w.blocks[blockIndex].exercises[exerciseIndex]
         let purpose: LoadPurpose = w.blocks[blockIndex].format == .strength ? .strength : .metcon
         let autoreg = WorkoutGenerator.computeAutoreg(history, profile)
-        let load = WorkoutGenerator.computeLoad(newExercise, profile, purpose: purpose, autoreg: autoreg)
+        // Při záměně hlavního silového cviku musí %1RM odpovídat skutečnému
+        // rep scheme bloku (viz WorkoutGenerator.strengthPercent), jinak by
+        // swap tiše spadl na fallback 80 % bez ohledu na to, že blok je
+        // např. na 3 opakování v sérii.
+        let repsPerSet: Int? = purpose == .strength ? WorkoutGenerator.strengthSetsScheme(profile.level).reps : nil
+        let load = WorkoutGenerator.computeLoad(newExercise, profile, purpose: purpose, autoreg: autoreg, repsPerSet: repsPerSet)
         let tier = profile.level.tier
         w.blocks[blockIndex].exercises[exerciseIndex] = WorkoutExercise(
             exerciseId: newExercise.id, name: newExercise.name, category: newExercise.category, pattern: newExercise.pattern,

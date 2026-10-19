@@ -227,7 +227,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "bench-press", name: "Bench Press", category: .weightlifting, pattern: .push,
             muscles: ["hrudník", "triceps", "ramena"], equipment: [.barbell, .rack], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "benchPress", variantMultiplier: 1,
             standard: LoadStandard(rx: LoadStandardValues(M: 61, F: 40), scaled: LoadStandardValues(M: 40, F: 27)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Bench press s prázdnou tyčí, nácvik dráhy.", criteria: "Kontrolovaně spustí a vytlačí tyč v plném rozsahu."), intermediate: LevelInfo(desc: "Bench press se střední zátěží.", criteria: "Stabilní dráha tyče při 60 %+ 1RM."), rx: LevelInfo(desc: "Bench press s plnou zátěží.", criteria: "Silný a stabilní tlak i u těžkých vah.")),
             cues: ["Lopatky stažené k sobě", "Nohy pevně na zemi", "Tyč k dolní části hrudníku"],
@@ -249,7 +249,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Pistol na box s oporou (TRX/rám).", criteria: "Zvládne kontrolovaný sed jednonož s oporou."), intermediate: LevelInfo(desc: "Pistol na zvýšené ploše bez opory.", criteria: "Provede pistol s dopomocí protilehlé nohy bez opory."), rx: LevelInfo(desc: "Plný pistol squat z podlahy střídavě obě nohy.", criteria: "Čistý jednonožný dřep do plné hloubky bez opory.")),
             cues: ["Volná noha vpřed a nahoře", "Váha na celém chodidle", "Paže pro rovnováhu vpřed"],
-            mistakes: ["Ztráta rovnováhy vzad", "Zvedání paty", "Neúplná hloubka"]
+            mistakes: ["Ztráta rovnováhy vzad", "Zvedání paty", "Neúplná hloubka"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "push-up", name: "Push-up", category: .gymnastics, pattern: .push,
@@ -267,7 +268,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Podporovaný pull-up s gumou nebo negativní fáze.", criteria: "Zvládne kontrolovaný sestup (negativ) 3–5 s."), intermediate: LevelInfo(desc: "Strict pull-up bez pomoci, nižší objem.", criteria: "Zvládne 3–5 čistých strict pull-upů."), rx: LevelInfo(desc: "Strict pull-up ve vyšším objemu/sériích.", criteria: "Zvládne 10+ strict pull-upů v sérii.")),
             cues: ["Brada nad tyč", "Plná extenze v dolní pozici", "Napnutý core, bez švihu"],
-            mistakes: ["Kipping místo strict", "Neúplný rozsah nahoře/dole", "Prohnutí v zádech"]
+            mistakes: ["Kipping místo strict", "Neúplný rozsah nahoře/dole", "Prohnutí v zádech"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "kipping-pull-up", name: "Kipping Pull-up", category: .gymnastics, pattern: .pull,
@@ -276,7 +278,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik kipping švihu bez zvednutí brady.", criteria: "Zvládá plynulý kipping švih (kotva) na tyči."), intermediate: LevelInfo(desc: "Kipping pull-up jednotlivě.", criteria: "Zvládne 5+ kipping pull-upů v sérii."), rx: LevelInfo(desc: "Kipping pull-up ve vysokém objemu.", criteria: "Zvládne 15+ v sérii s konzistentním rytmem.")),
             cues: ["Švih vychází z kyčlí", "Aktivní zápěstí a tah loktů dolů", "Rytmický kipping oblouk"],
-            mistakes: ["Švih pouze pažemi", "Ztráta rytmu", "Otevírání příliš brzy"]
+            mistakes: ["Švih pouze pažemi", "Ztráta rytmu", "Otevírání příliš brzy"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "chest-to-bar-pull-up", name: "Chest-to-Bar Pull-up", category: .gymnastics, pattern: .pull,
@@ -285,7 +288,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik vyššího tahu s gumovou dopomocí.", criteria: "Zvládá strict pull-up s bradou nad tyčí."), intermediate: LevelInfo(desc: "C2B pull-up jednotlivě s kippingem.", criteria: "Zvládne 3–5 C2B pull-upů v sérii."), rx: LevelInfo(desc: "C2B pull-up ve vyšším objemu.", criteria: "Zvládne 10+ v sérii s hrudníkem k tyči.")),
             cues: ["Silnější kipping oblouk", "Táhni hruď k tyči, ne bradu", "Aktivní záda při tahu"],
-            mistakes: ["Nedosažení hrudníku k tyči", "Ztráta kontroly na sestupu", "Přetáčení ramen"]
+            mistakes: ["Nedosažení hrudníku k tyči", "Ztráta kontroly na sestupu", "Přetáčení ramen"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "butterfly-pull-up", name: "Butterfly Pull-up", category: .gymnastics, pattern: .pull,
@@ -294,7 +298,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik kruhového kippingu bez tahu nahoru.", criteria: "Zvládá plynulý kipping pull-up."), intermediate: LevelInfo(desc: "Butterfly pull-up v pomalejším tempu.", criteria: "Zvládne 5+ butterfly pull-upů plynule za sebou."), rx: LevelInfo(desc: "Butterfly pull-up ve vysokém tempu/objemu.", criteria: "Zvládne 15+ v konzistentním cyklickém rytmu.")),
             cues: ["Kruhová dráha těla", "Kontinuální rytmus bez zastavení", "Aktivní kotník při odrazu"],
-            mistakes: ["Přerušovaný rytmus", "Ztráta rovnováhy do stran", "Předčasné vyčerpání tempa"]
+            mistakes: ["Přerušovaný rytmus", "Ztráta rovnováhy do stran", "Předčasné vyčerpání tempa"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "bar-muscle-up", name: "Bar Muscle-up", category: .gymnastics, pattern: .pull,
@@ -303,7 +308,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik high pull-upu a transition drillů.", criteria: "Zvládá C2B pull-up a false grip na tyči."), intermediate: LevelInfo(desc: "Bar muscle-up s dopomocí (guma/band).", criteria: "Zvládne přechod (transition) s asistencí."), rx: LevelInfo(desc: "Bar muscle-up bez dopomoci.", criteria: "Zvládne 3+ čisté bar muscle-upy v sérii.")),
             cues: ["False grip úchop", "Agresivní tah přes tyč", "Rychlý přechod do dipu"],
-            mistakes: ["Chybějící false grip", "Zaseknutí v transition", "Kopání nohama"]
+            mistakes: ["Chybějící false grip", "Zaseknutí v transition", "Kopání nohama"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "ring-muscle-up", name: "Ring Muscle-up", category: .gymnastics, pattern: .pull,
@@ -312,7 +318,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik ring rows a false grip držení.", criteria: "Zvládá strict ring pull-up s false grip."), intermediate: LevelInfo(desc: "Ring muscle-up s dopomocí/nízkými kruhy.", criteria: "Zvládne přechod s částečnou dopomocí."), rx: LevelInfo(desc: "Ring muscle-up bez dopomoci.", criteria: "Zvládne 3+ čisté ring muscle-upy v sérii.")),
             cues: ["False grip a stažené lopatky", "Tah do hrudníku k rukám", "Plynulý přechod bez zastavení"],
-            mistakes: ["Kroužení/nestabilní kruhy", "Chybějící false grip", "Zaseknutí v transition"]
+            mistakes: ["Kroužení/nestabilní kruhy", "Chybějící false grip", "Zaseknutí v transition"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "ring-dip", name: "Ring Dip", category: .gymnastics, pattern: .push,
@@ -321,7 +328,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Podporovaný dip nebo dip na bradlech.", criteria: "Zvládne dip na pevných bradlech v plném rozsahu."), intermediate: LevelInfo(desc: "Ring dip s částečnou dopomocí.", criteria: "Zvládne 3–5 ring dipů s minimální rotací kruhů."), rx: LevelInfo(desc: "Ring dip bez dopomoci ve vyšším objemu.", criteria: "Zvládne 10+ stabilních ring dipů v sérii.")),
             cues: ["Stabilní kruhy, minimální kolébání", "Lokty blízko těla", "Plný rozsah dolů i nahoru"],
-            mistakes: ["Nestabilní kruhy (kolébání)", "Neúplný rozsah", "Prohnutí v ramenou"]
+            mistakes: ["Nestabilní kruhy (kolébání)", "Neúplný rozsah", "Prohnutí v ramenou"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "strict-handstand-push-up", name: "Strict Handstand Push-up", category: .gymnastics, pattern: .push,
@@ -330,7 +338,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Pike push-up na zemi/na boxu.", criteria: "Zvládne 5 pike push-upů v plném rozsahu."), intermediate: LevelInfo(desc: "HSPU s deficitem/abmatem, částečný rozsah.", criteria: "Zvládne 3–5 strict HSPU u zdi."), rx: LevelInfo(desc: "Strict HSPU ve vyšším objemu.", criteria: "Zvládne 10+ strict HSPU v sérii.")),
             cues: ["Napnutý core, aktivní ramena", "Hlava mezi pažemi", "Kontrolovaný sestup"],
-            mistakes: ["Prohnutí v dolních zádech", "Neúplný rozsah", "Ztráta rovnováhy od zdi"]
+            mistakes: ["Prohnutí v dolních zádech", "Neúplný rozsah", "Ztráta rovnováhy od zdi"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "kipping-handstand-push-up", name: "Kipping Handstand Push-up", category: .gymnastics, pattern: .push,
@@ -339,7 +348,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik kip švihu u zdi bez tlaku.", criteria: "Zvládá strict HSPU s částečnou dopomocí."), intermediate: LevelInfo(desc: "Kipping HSPU jednotlivě.", criteria: "Zvládne 5+ kipping HSPU v sérii."), rx: LevelInfo(desc: "Kipping HSPU ve vysokém objemu.", criteria: "Zvládne 15+ v konzistentním tempu.")),
             cues: ["Kip iniciovaný kyčlemi/nohama", "Rychlý tlak v horní fázi kipu", "Stabilní zámek nad hlavou"],
-            mistakes: ["Ztráta rovnováhy od zdi", "Slabý kip impuls", "Neúplná extenze paží"]
+            mistakes: ["Ztráta rovnováhy od zdi", "Slabý kip impuls", "Neúplná extenze paží"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "handstand-walk", name: "Handstand Walk", category: .gymnastics, pattern: .push,
@@ -348,7 +358,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Kick-up do stoje na rukou u zdi, držení.", criteria: "Udrží stoj na rukou u zdi 20+ s."), intermediate: LevelInfo(desc: "Volný stoj na rukou, krátké kroky.", criteria: "Zvládne 3–5 kroků bez opory."), rx: LevelInfo(desc: "Handstand walk na vzdálenost/přes překážky.", criteria: "Zvládne 15 m+ plynulé chůze na rukou.")),
             cues: ["Napnutý core, aktivní zápěstí", "Malé kroky prsty", "Pohled mezi ruce"],
-            mistakes: ["Prohnutá záda (banana back)", "Velké nekontrolované kroky", "Napjaté zatnuté zápěstí"]
+            mistakes: ["Prohnutá záda (banana back)", "Velké nekontrolované kroky", "Napjaté zatnuté zápěstí"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "toes-to-bar", name: "Toes-to-Bar", category: .gymnastics, pattern: .core,
@@ -357,7 +368,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Knees-to-chest na tyči nebo hanging knee raise.", criteria: "Zvládne 5 hanging knee raises s kontrolou."), intermediate: LevelInfo(desc: "T2B jednotlivě s kippingem.", criteria: "Zvládne 8+ T2B v sérii."), rx: LevelInfo(desc: "T2B ve vysokém objemu/tempu.", criteria: "Zvládne 20+ v konzistentním kippingovém rytmu.")),
             cues: ["Kipping švih z kyčlí", "Aktivní napnutí core nahoře", "Špičky k tyči, ne jen nahoru"],
-            mistakes: ["Pouze houpání beze zvednutí", "Pokrčená kolena místo T2B", "Ztráta rytmu švihu"]
+            mistakes: ["Pouze houpání beze zvednutí", "Pokrčená kolena místo T2B", "Ztráta rytmu švihu"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "knees-to-elbows", name: "Knees-to-Elbows", category: .gymnastics, pattern: .core,
@@ -375,7 +387,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "GHD sit-up s menším rozsahem/pomalu.", criteria: "Zvládne 5 kontrolovaných opakování v menším rozsahu."), intermediate: LevelInfo(desc: "GHD sit-up v plném rozsahu.", criteria: "Zvládne 10+ v plném rozsahu bez bolesti zad."), rx: LevelInfo(desc: "GHD sit-up ve vyšším objemu/tempu.", criteria: "Zvládne 20+ v konzistentním tempu.")),
             cues: ["Plynulý pohyb, ne trhaný", "Dotek rukama země vzadu", "Aktivace core při návratu"],
-            mistakes: ["Příliš rychlé/trhané tempo", "Přetěžování dolních zad", "Neúplný rozsah"]
+            mistakes: ["Příliš rychlé/trhané tempo", "Přetěžování dolních zad", "Neúplný rozsah"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "box-jump", name: "Box Jump", category: .gymnastics, pattern: .jump,
@@ -429,7 +442,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Nácvik J-hook úchopu nohama na laně u země.", criteria: "Zvládá visení na laně s aktivním úchopem nohama."), intermediate: LevelInfo(desc: "Rope climb s výpomocí nohou (J-hook).", criteria: "Vyleze 4–5 m s technikou nohou."), rx: LevelInfo(desc: "Legless rope climb nebo rychlý výlez.", criteria: "Zvládne výlez bez/s minimální pomocí nohou opakovaně.")),
             cues: ["Úchop nohama (J-hook)", "Táhni loktem dolů, ne rukou vzhůru", "Kontrolovaný sestup"],
-            mistakes: ["Chybějící zajištění nohou", "Přetěžování předloktí", "Nekontrolovaný sjezd (spálení dlaní)"]
+            mistakes: ["Chybějící zajištění nohou", "Přetěžování předloktí", "Nekontrolovaný sjezd (spálení dlaní)"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "l-sit", name: "L-sit", category: .gymnastics, pattern: .core,
@@ -438,7 +452,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Tuck-sit (pokrčená kolena) na podložkách/kruzích.", criteria: "Udrží tuck-sit 10 s se zvednutými nohami."), intermediate: LevelInfo(desc: "L-sit s jednou nohou nataženou nebo krátký L-sit.", criteria: "Udrží L-sit 10–15 s."), rx: LevelInfo(desc: "Plný L-sit v delším držení.", criteria: "Udrží plný L-sit 30 s+.")),
             cues: ["Napnutá kolena a špičky", "Tlak dlaní do země, ramena dolů", "Napnutý core po celou dobu"],
-            mistakes: ["Pokrčená kolena při plném L-sit", "Zvednutá ramena k uším", "Zadržování dechu"]
+            mistakes: ["Pokrčená kolena při plném L-sit", "Zvednutá ramena k uším", "Zadržování dechu"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "run", name: "Run", category: .monostructural, pattern: .monostructural,
@@ -887,7 +902,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Ring row ve vzpřímenější pozici (menší úhel těla).", criteria: "Zvládne 8 opakování s rovným tělem."), intermediate: LevelInfo(desc: "Ring row v horizontální pozici.", criteria: "Zvládne 15+ opakování s plným rozsahem."), rx: LevelInfo(desc: "Ring row s pokrčenýma nohama nebo ve vyšším objemu.", criteria: "Zvládne 20+ opakování pod únavou.")),
             cues: ["Tělo v jedné linii", "Táhni hruď k rukám", "Stažené lopatky nahoře"],
-            mistakes: ["Prohnutá/propadlá pozice boků", "Neúplný rozsah", "Tah pouze pažemi"]
+            mistakes: ["Prohnutá/propadlá pozice boků", "Neúplný rozsah", "Tah pouze pažemi"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "wall-walk", name: "Wall Walk", category: .gymnastics, pattern: .push,
@@ -896,7 +912,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Částečný wall walk do poloviny cesty ke zdi.", criteria: "Zvládá plank s nohama na zvýšené ploše."), intermediate: LevelInfo(desc: "Plný wall walk hrudníkem/bradou ke zdi.", criteria: "Zvládne 3+ wall walky s kontrolou."), rx: LevelInfo(desc: "Wall walk ve vyšším objemu/sériích.", criteria: "Zvládne 5+ wall walků plynule za sebou.")),
             cues: ["Malé kroky rukama i nohama", "Napnutý core po celou dobu", "Kontrolovaný sestup"],
-            mistakes: ["Prohnutá záda", "Příliš velké kroky", "Nekontrolovaný pád při sestupu"]
+            mistakes: ["Prohnutá záda", "Příliš velké kroky", "Nekontrolovaný pád při sestupu"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "tuck-jump", name: "Tuck Jump", category: .gymnastics, pattern: .jump,
@@ -932,7 +949,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Hollow hold s pokrčenými koleny.", criteria: "Udrží hollow hold 15 s."), intermediate: LevelInfo(desc: "Hollow rock s nataženým tělem.", criteria: "Zvládne 15+ plynulých rocků v hollow pozici."), rx: LevelInfo(desc: "Hollow rock ve vysokém objemu/tempu.", criteria: "Zvládne 30+ rocků bez ztráty napětí v zádech.")),
             cues: ["Bederní páteř přitisknutá k zemi", "Napnuté celé tělo", "Malý, kontrolovaný rock"],
-            mistakes: ["Odlepená bederní páteř", "Pokrčená kolena při plné verzi", "Ztráta napětí uprostřed série"]
+            mistakes: ["Odlepená bederní páteř", "Pokrčená kolena při plné verzi", "Ztráta napětí uprostřed série"],
+            isSkillPractice: true
         ),
         Exercise(
             id: "ghd-back-extension", name: "GHD Back Extension", category: .gymnastics, pattern: .core,
