@@ -27,6 +27,7 @@ struct ProfileView: View {
                 oneRMCard
                 equipmentCard
                 excludedPatternsCard
+                skillOverridesCard
                 goalCard
                 preferredFormatsCard
                 autoregCard
@@ -202,6 +203,43 @@ struct ProfileView: View {
                 ForEach(MovementPattern.allCases, id: \.self) { pattern in
                     ChipButton(label: pattern.label(store.language), isActive: draft.excludedPatterns.contains(pattern), danger: true) {
                         toggle(pattern, in: \.excludedPatterns)
+                    }
+                }
+            }
+        }
+        .cardStyle()
+    }
+
+    private func skillChainLabel(_ chainId: String) -> String {
+        store.t("skill_chain_\(chainId.replacingOccurrences(of: "-", with: "_"))")
+    }
+
+    private var skillOverridesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader(store.t("skill_overrides"))
+            Text(store.t("skill_overrides_hint"))
+                .font(.system(size: 12)).foregroundColor(DT.fgMuted)
+            ForEach(SkillProgression.chains, id: \.id) { chain in
+                HStack {
+                    Text(skillChainLabel(chain.id))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(DT.fg)
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { draft.skillOverrides?[chain.id] ?? chain.steps[0] },
+                        set: { newValue in
+                            var overrides = draft.skillOverrides ?? [:]
+                            if newValue == chain.steps[0] {
+                                overrides.removeValue(forKey: chain.id)
+                            } else {
+                                overrides[chain.id] = newValue
+                            }
+                            draft.skillOverrides = overrides.isEmpty ? nil : overrides
+                        }
+                    )) {
+                        ForEach(chain.steps, id: \.self) { stepId in
+                            Text(ExerciseDatabase.byId[stepId]?.name ?? stepId).tag(stepId)
+                        }
                     }
                 }
             }

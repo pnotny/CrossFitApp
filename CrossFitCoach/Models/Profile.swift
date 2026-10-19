@@ -55,6 +55,14 @@ struct AthleteProfile: Codable, Hashable {
     var preferredFormats: [WorkoutFormat] = []
     var autoregEnabled: Bool = true
     var weeklyTemplate: [DayType] = AthleteProfile.defaultWeeklyTemplate
+    /// Manuální přeskočení řetězu dovedností (viz `SkillProgression`) — klíč je
+    /// `SkillProgression.Chain.id`, hodnota je exerciseId kroku, od kterého už
+    /// uživatel sám říká, že umí začít (např. "už zvládám kipping pull-up, nepotřebuju
+    /// se znovu propracovávat přes hollow-rock/ring-row"). Optional (ne `= [:]`),
+    /// protože non-optional pole s defaultem u Codable synthesis nechrání starší
+    /// uložené profily bez tohoto klíče — chybějící klíč by jinak shodil celý
+    /// decode a Storage.getProfile by tiše spadl na úplně čerstvý výchozí profil.
+    var skillOverrides: [String: String]?
 
     static let defaultWeeklyTemplate: [DayType] = [
         .strength, .gymnastics, .monostructural, .strength, .gymnastics, .chipper, .rest

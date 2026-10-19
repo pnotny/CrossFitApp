@@ -34,16 +34,19 @@ import Foundation
 /// trénují paralelně, ne jedno po druhém.
 enum SkillProgression {
     struct Chain {
+        /// Stabilní klíč pro `AthleteProfile.skillOverrides` — nemění se, i kdyby
+        /// se měnilo pořadí řetězů v `chains`.
+        let id: String
         /// Od nejlehčí varianty k nejtěžší.
         let steps: [String]
     }
 
     static let chains: [Chain] = [
-        Chain(steps: ["muscle-clean", "hang-power-clean", "power-clean", "hang-squat-clean", "squat-clean"]),
-        Chain(steps: ["muscle-snatch", "snatch-balance", "hang-power-snatch", "power-snatch", "hang-snatch", "snatch"]),
-        Chain(steps: ["push-press", "push-jerk", "split-jerk"]),
-        Chain(steps: ["hollow-rock", "ring-row", "strict-pull-up", "kipping-pull-up", "chest-to-bar-pull-up", "butterfly-pull-up", "bar-muscle-up"]),
-        Chain(steps: ["hollow-rock", "ring-row", "strict-pull-up", "ring-dip", "ring-muscle-up"])
+        Chain(id: "clean", steps: ["muscle-clean", "hang-power-clean", "power-clean", "hang-squat-clean", "squat-clean"]),
+        Chain(id: "snatch", steps: ["muscle-snatch", "snatch-balance", "hang-power-snatch", "power-snatch", "hang-snatch", "snatch"]),
+        Chain(id: "jerk", steps: ["push-press", "push-jerk", "split-jerk"]),
+        Chain(id: "bar-kipping", steps: ["hollow-rock", "ring-row", "strict-pull-up", "kipping-pull-up", "chest-to-bar-pull-up", "butterfly-pull-up", "bar-muscle-up"]),
+        Chain(id: "ring-muscle-up", steps: ["hollow-rock", "ring-row", "strict-pull-up", "ring-dip", "ring-muscle-up"])
     ]
 
     /// Laditelné prahy postupu — viz vysvětlení nahoře u typu.
@@ -74,7 +77,11 @@ enum SkillProgression {
 
     /// Aktuální krok v řetězu k dnešnímu dni, nebo nil = řetězec "vystudován"
     /// (dosaženo posledního kroku) → žádné omezení výběru v rámci rodiny.
-    static func currentStep(_ chain: Chain, history: [Workout], today: String) -> String? {
+    ///
+    /// `overrideStepId`: ruční "už umím od tohoto kroku dál" z
+    /// `AthleteProfile.skillOverrides[chain.id]` — platí jako podlaha, ne jako
+    /// strop; historie může posunout dál, ale nikdy pod ručně nastavenou úroveň.
+    static func currentStep(_ chain: Chain, history: [Workout], today: String, overrideStepId: String? = nil) -> String? {
         let todayDate = DateUtils.date(from: today)
 
         // Začni od NEJVYŠŠÍHO kroku, který už má v historii alespoň jednu
@@ -86,6 +93,9 @@ enum SkillProgression {
         var startIndex = 0
         for (index, stepId) in chain.steps.enumerated() where firstSeenDate(stepId, in: history) != nil {
             startIndex = index
+        }
+        if let overrideStepId, let overrideIndex = chain.steps.firstIndex(of: overrideStepId) {
+            startIndex = max(startIndex, overrideIndex)
         }
 
         for index in startIndex..<chain.steps.count {
@@ -111,10 +121,10 @@ enum SkillProgression {
     /// muscle-clean…) je normální doplňkový cvik i po postupu dál, ne něco, co
     /// by appka měla po "vystudování" schovávat. Cviky, co nejsou součástí
     /// žádného řetězu, nedotčeny.
-    static func restrictToCurrentStep(_ candidates: [Exercise], history: [Workout], today: String) -> [Exercise] {
+    static func restrictToCurrentStep(_ candidates: [Exercise], history: [Workout], today: String, overrides: [String: String] = [:]) -> [Exercise] {
         var blocked: Set<String> = []
         for chain in chains {
-            guard let step = currentStep(chain, history: history, today: today),
+            guard let step = currentStep(chain, history: history, today: today, overrideStepId: overrides[chain.id]),
                   let stepIndex = chain.steps.firstIndex(of: step) else { continue }
             blocked.formUnion(chain.steps[(stepIndex + 1)...])
         }

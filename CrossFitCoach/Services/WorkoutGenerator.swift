@@ -117,7 +117,7 @@ enum WorkoutGenerator {
         let tier = profile.level.tier
         var core = eligible.filter { ExerciseDifficulty.isCore($0, for: tier) }
         guard tier != .rx else { return core }
-        core = SkillProgression.restrictToCurrentStep(core, history: history, today: dateString)
+        core = SkillProgression.restrictToCurrentStep(core, history: history, today: dateString, overrides: profile.skillOverrides ?? [:])
         let intro = ExerciseDifficulty.introductionCandidates(eligible, for: tier)
         guard !intro.isEmpty, Double.random(in: 0..<1, using: &rng) < 0.25, let pick = intro.randomElement(using: &rng) else { return core }
         return core + [pick]
