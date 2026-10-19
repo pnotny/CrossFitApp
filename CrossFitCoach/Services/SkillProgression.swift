@@ -70,6 +70,12 @@ enum SkillProgression {
         return dates.min()
     }
 
+    /// Datum posledního odcvičeného (uloženého) tréninku vůbec — libovolného,
+    /// ne jen z tohoto řetězu.
+    private static func lastWorkoutDate(in history: [Workout]) -> Date? {
+        history.map { DateUtils.date(from: $0.date) }.max()
+    }
+
     private static func weeksBetween(_ from: Date, _ to: Date) -> Int {
         let days = Calendar(identifier: .gregorian).dateComponents([.day], from: from, to: to).day ?? 0
         return max(0, days / 7)
@@ -82,7 +88,14 @@ enum SkillProgression {
     /// `AthleteProfile.skillOverrides[chain.id]` — platí jako podlaha, ne jako
     /// strop; historie může posunout dál, ale nikdy pod ručně nastavenou úroveň.
     static func currentStep(_ chain: Chain, history: [Workout], today: String, overrideStepId: String? = nil) -> String? {
-        let todayDate = DateUtils.date(from: today)
+        // "Hodiny" postupu (minWeeksPerStep/maxWeeksPerStep) běží vůči datu
+        // POSLEDNÍHO reálně odcvičeného tréninku, ne vůči dnešnímu kalendářnímu
+        // datu — jinak by se po dlouhé pauze (appku jsi třeba půl roku
+        // neotevřel) čas "naběhlý" během pauzy omylem započítal jako důkaz, že
+        // je čas postoupit dál, a appka by tě posunula na krok, který jsi
+        // nikdy nezkoušel. S referenčním datem u poslední aktivity appka po
+        // návratu naváže přesně tam, kde jsi skončil.
+        let referenceDate = lastWorkoutDate(in: history) ?? DateUtils.date(from: today)
 
         // Začni od NEJVYŠŠÍHO kroku, který už má v historii alespoň jednu
         // session — jinak by uživatel, co má v historii třeba rovnou squat-clean
@@ -104,7 +117,7 @@ enum SkillProgression {
             guard let introduced = firstSeenDate(stepId, in: history) else {
                 return stepId // tenhle krok (a žádný pozdější) ještě nezažil — tady se začíná
             }
-            let weeks = weeksBetween(introduced, todayDate)
+            let weeks = weeksBetween(introduced, referenceDate)
             if weeks < minWeeksPerStep { return stepId }
             let sessions = sessionCount(stepId, in: history)
             if sessions >= sessionsToAdvance || weeks >= maxWeeksPerStep {
