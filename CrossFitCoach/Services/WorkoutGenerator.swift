@@ -279,7 +279,14 @@ enum WorkoutGenerator {
         if let key = exercise.oneRMKey, let oneRM = profile.oneRM[key] {
             let weight = roundToStep(oneRM * exercise.variantMultiplier * pct, step)
             let liftLabel = OneRepMaxes.liftLabels.first(where: { $0.key == key })?.label ?? key
-            return LoadResult(weight: weight, unit: "kg", source: "\(liftLabel) 1RM", pct: Int((pct * 100).rounded()), autoregAdj: adj)
+            // Zobrazené "% 1RM" musí sedět na zobrazenou váhu (uživatel: "bent
+            // over row 55 % deadlift 1RM není 55 kg z 200 kg"). U odvozeného
+            // cviku (variantMultiplier != 1, např. bent-over-row ~50 % deadliftu)
+            // se váha počítá JEŠTĚ přes tenhle multiplikátor navrch `pct` — bez
+            // něj v popisku by "55 %" neodpovídalo skutečné váze, jen cílovému
+            // pct před přepočtem na variantu.
+            let effectivePct = Int((pct * exercise.variantMultiplier * 100).rounded())
+            return LoadResult(weight: weight, unit: "kg", source: "\(liftLabel) 1RM", pct: effectivePct, autoregAdj: adj)
         }
         if let standard = exercise.standard {
             // 4 odstupňované váhy (beginner/intermediate/advanced/RX) dopočítané
@@ -619,10 +626,9 @@ enum WorkoutGenerator {
                 exercises[i].reps = metconRepsLabel(pick, format: .forTime, language: language)
             }
             let cap = "\(minutes) min"
-            let names = exercises.map(\.name).joined(separator: ", ")
             return WorkoutBlock(
                 title: title, format: .forTime, formatLabel: WorkoutFormat.forTime.label(language), durationMin: minutes, timeCap: cap,
-                scheme: language == .en ? "3 rounds For Time — \(names)" : "3 kola For Time — \(names)", exercises: exercises,
+                scheme: language == .en ? "3 rounds For Time" : "3 kola For Time", exercises: exercises,
                 notes: "\(language == .en ? "Time cap" : "Time cap") \(cap). \(language == .en ? "Note your finish time to track progress." : "Piš si čas dokončení pro sledování progresu.")\(note)"
             )
         }
