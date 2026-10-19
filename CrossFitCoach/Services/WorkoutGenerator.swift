@@ -715,28 +715,73 @@ enum WorkoutGenerator {
         )]
     }
 
-    static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, deload: Bool = false, using rng: inout SeededGenerator) -> [WorkoutBlock] {
-        let avoid = recoveryAvoidPatterns(history, dateString)
-        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
-        let fullTimeCap = clampInt(profile.timeAvailable, 15, 90)
-        let timeCap = deload ? clampInt(Int(Double(fullTimeCap) * 0.6), 12, 90) : fullTimeCap
-        let count = clampInt(Int((Double(timeCap) / 6).rounded()), 4, 8)
-        let missing = MuscleCoverage.missingMandatory(history, dateString: dateString)
-        let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad, coveragePriority: missing, using: &rng)
+    /// Jeden chipper-styl blok (For Time, sestupné počty, každý cvik jednou) —
+    /// vytažené z `buildChipperDay` do samostatné funkce, aby šlo totéž použít
+    /// jako JEDEN z více bloků dne (viz "recepty" níže), ne jen jako celý den.
+    private static func buildChipperBlock(title: String, picks: [Exercise], profile: AthleteProfile, minutes: Int, autoreg: [LoadPurpose: Int], deload: Bool, language: AppLanguage) -> WorkoutBlock {
         let baseReps = deload ? [30, 25, 20, 18, 15, 12, 10, 8] : [50, 40, 35, 30, 25, 20, 15, 10]
         let exercises = picks.enumerated().map { i, ex in
             toWorkoutExercise(ex, profile, purpose: .metcon, reps: String(i < baseReps.count ? baseReps[i] : 15), note: "", autoreg: autoreg, deload: deload)
         }
-        return [WorkoutBlock(
-            title: "Chipper", format: .chipper, formatLabel: WorkoutFormat.chipper.label(language),
-            durationMin: timeCap, timeCap: "\(timeCap) min", scheme: language == .en ? "For Time — go through the exercises in order, once each" : "For Time — projdi cviky v pořadí, jednou každý",
+        return WorkoutBlock(
+            title: title, format: .chipper, formatLabel: WorkoutFormat.chipper.label(language),
+            durationMin: minutes, timeCap: "\(minutes) min", scheme: language == .en ? "For Time — go through the exercises in order, once each" : "For Time — projdi cviky v pořadí, jednou každý",
             exercises: exercises, notes: (deload
                 ? (language == .en ? "Deload week — lower volume, moderate pace." : "Deload týden — nižší objem, mírné tempo.")
                 : (language == .en
                     ? "Long volume workout — pace yourself, don't start too fast."
                     : "Dlouhý objemový trénink — rozlož síly, nezačínej zbytečně rychle.")) + autoregNote(autoreg, .metcon, language)
-        )]
+        )
+    }
+
+    /// "Objemový metcon" den (uživatelsky "kalorická crossfitová vypalovačka") —
+    /// uživatel výslovně chtěl, aby se tenhle den neskládal pořád ze stejného
+    /// jednoho formátu, ale mixoval 2–3 různé: "3 amrapy, nebo emom a amrap,
+    /// nebo emom a chipper, nebo amrap a chipper." Recept se losuje (seedem,
+    /// takže stejný den = stejný recept, dokud se nepřegeneruje), každý blok
+    /// dostane vlastní výběr cviků (bez opakování patternu/cviku z
+    /// předchozích bloků toho dne) a zhruba rovný díl času.
+    static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, deload: Bool = false, using rng: inout SeededGenerator) -> [WorkoutBlock] {
+        let avoid = recoveryAvoidPatterns(history, dateString)
+        let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
+        let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
+        let missing = MuscleCoverage.missingMandatory(history, dateString: dateString)
+
+        let fullTotal = clampInt(profile.timeAvailable, 15, 90)
+        let total = deload ? clampInt(Int(Double(fullTotal) * 0.6), 12, 90) : fullTotal
+
+        let recipes: [[WorkoutFormat]] = [
+            [.amrap, .amrap, .amrap],
+            [.emom, .amrap],
+            [.emom, .chipper],
+            [.amrap, .chipper]
+        ]
+        let recipe = recipes.randomElement(using: &rng) ?? [.amrap, .amrap]
+        let letters = ["A", "B", "C", "D"]
+        let perBlockMinutes = clampInt(Int((Double(total) / Double(recipe.count) / 5).rounded()) * 5, 10, 30)
+
+        var blocks: [WorkoutBlock] = []
+        var cumulativePatterns = Array(avoid)
+        var cumulativeIds: [String] = []
+
+        for (i, format) in recipe.enumerated() {
+            var segPool = pool.filter { !cumulativeIds.contains($0.id) }
+            if segPool.count < 4 { segPool = pool }
+            let letter = letters[min(i, letters.count - 1)]
+            let label = "\(language == .en ? "Block" : "Blok") \(letter) · \(format.label(language))"
+
+            if format == .chipper {
+                let count = clampInt(Int((Double(perBlockMinutes) / 3).rounded()), 4, 8)
+                let picks = pickExercises(segPool, count: count, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad, coveragePriority: missing, using: &rng)
+                blocks.append(buildChipperBlock(title: label, picks: picks, profile: profile, minutes: perBlockMinutes, autoreg: autoreg, deload: deload, language: language))
+                for p in picks { cumulativePatterns.append(p.pattern); cumulativeIds.append(p.id) }
+            } else {
+                let picks = pickExercises(segPool, count: 3, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad, coveragePriority: missing, using: &rng)
+                blocks.append(buildMetconBlock(title: label, format: format, picks: picks, profile: profile, minutes: perBlockMinutes, autoreg: autoreg, deload: deload, language: language))
+                for p in picks { cumulativePatterns.append(p.pattern); cumulativeIds.append(p.id) }
+            }
+        }
+        return blocks
     }
 
     /// Počet opakování/kalorií v metconu podle typu cviku, ne jednotně pro
