@@ -65,29 +65,24 @@ odkud appku otevíráš (např. `https://pnotny.github.io`), a znovu nasaď:
 wrangler deploy
 ```
 
-## 4b. Založ D1 databázi (přihlašování)
+## 4b. D1 databáze (přihlašování)
 
 Appka vyžaduje přihlášení, takže Worker potřebuje databázi pro účty a
-session tokeny:
+session tokeny. `wrangler.toml` v tomhle repu už na ni má binding `DB`
+nastavený i s `database_id` — nic tu zakládat nemusíš, stačí jen při prvním
+nasazení nahrát schéma:
 
 ```bash
 cd strava-worker
-wrangler d1 create crossfit-coach-db
-```
-
-Příkaz vypíše `database_id` — zkopíruj ho do `wrangler.toml` místo
-`REPLACE_WITH_YOUR_D1_DATABASE_ID` (binding se jmenuje `DB`, to už je
-připravené). Pak nahraj schéma databáze:
-
-```bash
 wrangler d1 execute crossfit-coach-db --remote --file=schema.sql
-```
-
-A znovu nasaď Worker:
-
-```bash
 wrangler deploy
 ```
+
+> Pokud bys někdy chtěl úplně novou/vlastní databázi (např. jiný Cloudflare
+> účet), založ ji přes `wrangler d1 create crossfit-coach-db` a vypsané
+> `database_id` přepiš v `wrangler.toml` (řádek `database_id = "..."`
+> v sekci `[[d1_databases]]`) — pak zase stačí `wrangler d1 execute ...` a
+> `wrangler deploy` jako výše.
 
 Admin účet (`admin` / `admin`) se vytvoří automaticky při prvním volání
 `/auth/register` nebo `/auth/login` — nemusíš ho nijak zakládat ručně.

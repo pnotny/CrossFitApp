@@ -10,13 +10,13 @@ ALLOWED_ORIGIN = "https://pnotny.github.io"
 #   wrangler secret put STRAVA_CLIENT_SECRET
 
 # D1 databáze pro přihlašování uživatelů (users/sessions/login_attempts, viz schema.sql).
-# 1. Vytvoř databázi:  wrangler d1 create crossfit-coach-db
-# 2. Zkopíruj vrácené "database_id" sem místo placeholderu níže.
-# 3. Nahraj schéma:    wrangler d1 execute crossfit-coach-db --remote --file=schema.sql
+# database_id není tajná hodnota (bez přístupu k tvému Cloudflare účtu se s ní nedá
+# nic udělat), proto je rovnou v repu — po každém stažení/pull už to nemusíš ručně
+# dopisovat. Pokud by sis databázi založil znovu (wrangler d1 create), jen přepiš.
 [[d1_databases]]
 binding = "DB"
 database_name = "crossfit-coach-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "f915e619-c017-4bdf-aad0-12b5ddd96d4b"
 
 # Cloudflare Workers AI — AI koučovací poznámky (/ai/workout-notes), zdarma v rámci
 # free tier, žádný externí účet ani ID navíc. Stačí tenhle binding, nic se nevytváří.
