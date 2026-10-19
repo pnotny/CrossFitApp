@@ -399,13 +399,21 @@ final class AppStore: ObservableObject {
     func swapExercise(blockIndex: Int, exerciseIndex: Int, newExercise: Exercise) {
         guard var w = currentWorkout, blockIndex < w.blocks.count, exerciseIndex < w.blocks[blockIndex].exercises.count else { return }
         let current = w.blocks[blockIndex].exercises[exerciseIndex]
-        let purpose: LoadPurpose = w.blocks[blockIndex].format == .strength ? .strength : .metcon
+        // Blok A má format == .strength na SILOVÉM i na GYMNASTICKÉM dni (skill
+        // nácvik tam taky běží jako "Blok A", viz buildGymnasticsDay) — bez
+        // rozlišení kategorie by swap v gymnastickém skill bloku počítal váhu
+        // jako silový cvik (76–90 % 1RM) místo technického nácviku (~30 %).
+        let purpose: LoadPurpose = w.blocks[blockIndex].format == .strength
+            ? (current.category == .weightlifting ? .strength : .technique)
+            : .metcon
         let autoreg = WorkoutGenerator.computeAutoreg(history, profile)
         // Při záměně hlavního silového cviku musí %1RM odpovídat skutečnému
-        // rep scheme bloku (viz WorkoutGenerator.strengthPercent), jinak by
-        // swap tiše spadl na fallback 80 % bez ohledu na to, že blok je
-        // např. na 3 opakování v sérii.
-        let repsPerSet: Int? = purpose == .strength ? WorkoutGenerator.strengthSetsScheme(profile.level).reps : nil
+        // rep scheme bloku (viz WorkoutGenerator.strengthPercent), a to rep
+        // scheme se navíc teď cyklí (strengthSessionVariantIndex), ne jen
+        // funkce úrovně — jinak by swap spadl na jiné % než blok skutečně má.
+        let repsPerSet: Int? = purpose == .strength
+            ? WorkoutGenerator.strengthSetsScheme(profile.level, WorkoutGenerator.strengthSessionVariantIndex(history)).reps
+            : nil
         let load = WorkoutGenerator.computeLoad(newExercise, profile, purpose: purpose, autoreg: autoreg, repsPerSet: repsPerSet)
         let tier = profile.level.tier
         w.blocks[blockIndex].exercises[exerciseIndex] = WorkoutExercise(
@@ -435,6 +443,18 @@ final class AppStore: ObservableObject {
         // jen do samostatného Engine dne (swim) — mimo Engine blok (steady/
         // intervaly/tabata) by to bylo stejně nereálné jako ve WorkoutGeneratoru.
         let isEngineBlock: Bool = [.steady, .intervals, .tabata].contains(block.format)
+        // Hlavní silový cvik (Blok A na silovém dni) se při generování vybírá ze
+        // ŠIRŠÍHO poolu — libovolný squat/hinge/push/olympic cvik z celé
+        // .weightlifting kategorie (viz buildStrengthDay), ne jen přesná shoda
+        // pattern aktuálního cviku. Bez tohohle rozlišení swap v den s
+        // olympic-pattern hlavním cvikem (clean/snatch…) nikdy nenabídl
+        // deadlift/front squat/back squat (hinge/squat pattern) jako alternativu,
+        // přestože by při normální generaci byly stejně "na stole".
+        if block.format == .strength, current.category == .weightlifting {
+            let broad = WorkoutGenerator.filterPool(profile, categories: [.weightlifting], using: &rng)
+                .filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) && !usedIds.contains($0.id) }
+            if !broad.isEmpty { return broad }
+        }
         let byPattern = WorkoutGenerator.filterPool(profile, categories: nil, excludeStandaloneCardio: !isEngineBlock, using: &rng)
             .filter { $0.pattern == current.pattern && !usedIds.contains($0.id) }
         if !byPattern.isEmpty { return byPattern }

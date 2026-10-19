@@ -239,14 +239,18 @@ enum WorkoutGenerator {
     /// obvyklá praxe při více pracovních sériích: NSCA load-rep tabulka řadí
     /// ~87 % k 5RM a ~90 % ke 4RM, Prilepinova tabulka doporučuje pro 2–4
     /// opakování v sérii pásmo 80–90 %. Několik sérií za sebou proto jde o
-    /// kousek níž, než by šlo jedno maximální opakování na daný počet:
-    /// 3 opak. ≈ 88 %, 4 opak. ≈ 83 %, 5+ opak. ≈ 76 %.
+    /// kousek níž, než by šlo jedno maximální opakování na daný počet. Rozšířeno
+    /// i o 2/6/7-8 opakování pro rotující schémata (viz `strengthSetsScheme`) —
+    /// stupnice dál klesá se stoupajícím objemem na sérii.
     private static func strengthPercent(forReps reps: Int?) -> Double {
         guard let reps else { return 0.80 }
         switch reps {
-        case ...3: return 0.88
+        case ...2: return 0.90
+        case 3: return 0.88
         case 4: return 0.83
-        default: return 0.76
+        case 5: return 0.76
+        case 6: return 0.73
+        default: return 0.68 // 7-8+ opakování v sérii
         }
     }
 
@@ -349,19 +353,34 @@ enum WorkoutGenerator {
         return pool.randomElement(using: &rng) ?? candidates[0]
     }
 
-    static func strengthSetsScheme(_ level: AthleteLevel, _ language: AppLanguage = .cs) -> (sets: Int, reps: Int, label: String) {
-        if language == .en {
-            switch level {
-            case .beginner: return (3, 5, "3 sets × 5 reps")
-            case .intermediate: return (4, 4, "4 sets × 4 reps")
-            case .advanced, .rx: return (5, 3, "5 sets × 3 reps")
-            }
-        }
+    /// Kolikátý je tenhle silový den v uložené historii (0-based) — používá se
+    /// k CYKLICKÉMU prostřídání rep schémat (viz `strengthSetsScheme`), ne k
+    /// náhodě. Nahlášený bug: schéma bylo čistě funkcí úrovně, takže advanced
+    /// atlet viděl "5 × 3" se stejnou váhou doslova navždy, bez jakékoli
+    /// periodizace. Počítá se jen z DŘÍVE uložených tréninků, takže
+    /// "přegenerovat" ve stejném dni schéma nerozhodí (shoda s tím, že
+    /// `strengthSetsScheme` beztak s `rng` nepracuje).
+    static func strengthSessionVariantIndex(_ history: [Workout]) -> Int {
+        history.filter { $0.dayType == .strength }.count % 3
+    }
+
+    /// Tři rotující varianty objemu/intenzity na úroveň namísto jednoho fixního
+    /// schématu navždy: těžší/nižší objem → střední → vyšší objem/lehčí, pak
+    /// znovu od začátku. `variant` typicky přichází z `strengthSessionVariantIndex`.
+    static func strengthSetsScheme(_ level: AthleteLevel, _ variant: Int = 0, _ language: AppLanguage = .cs) -> (sets: Int, reps: Int, label: String) {
+        let variants: [(sets: Int, reps: Int)]
         switch level {
-        case .beginner: return (3, 5, "3 série × 5 opakování")
-        case .intermediate: return (4, 4, "4 série × 4 opakování")
-        case .advanced, .rx: return (5, 3, "5 sérií × 3 opakování")
+        case .beginner: variants = [(3, 5), (3, 8), (4, 6)]
+        case .intermediate: variants = [(4, 4), (3, 6), (5, 3)]
+        case .advanced, .rx: variants = [(5, 3), (4, 5), (3, 2)]
         }
+        let idx = ((variant % variants.count) + variants.count) % variants.count
+        let (sets, reps) = variants[idx]
+        if language == .en {
+            return (sets, reps, "\(sets) sets × \(reps) reps")
+        }
+        let setsWord = sets >= 5 ? "sérií" : "série"
+        return (sets, reps, "\(sets) \(setsWord) × \(reps) opakování")
     }
 
     // MARK: Stavba jednotlivých typů dne
@@ -387,7 +406,7 @@ enum WorkoutGenerator {
 
         if let main {
             missing.subtract(MuscleCoverage.groups(for: main))
-            let scheme = strengthSetsScheme(profile.level, language)
+            let scheme = strengthSetsScheme(profile.level, strengthSessionVariantIndex(history), language)
             let wEx = toWorkoutExercise(main, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg, repsPerSet: scheme.reps)
             usedPatterns.append(main.pattern)
             let weightLabel = wEx.weight != nil ? "\(formatWeight(wEx.weight!)) kg" : (language == .en ? "per standard" : "dle standardu")
