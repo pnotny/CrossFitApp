@@ -128,7 +128,9 @@ Pokud tvůj Cloudflare účet ještě nikdy Workers AI nepoužil, při prvním
 volání se v Cloudflare dashboardu (Workers & Pages → AI) může zobrazit
 jednorázová výzva k aktivaci — žádné další nastavení není potřeba.
 
-Appka se o AI poznámky pokusí jen pro dnešní trénink. Když se to nepovede
+Appka se o AI poznámky pokusí pro trénink, který je zrovna zobrazený na
+obrazovce Dnes (ať jde o dnešek, nebo libovolný jiný den z týdenního pruhu).
+Když se to nepovede
 (chybí síť, Worker neodpoví, model vrátí nečekaný výstup), appka beze změny
 zůstane u poznámek, které si sama vygenerovala — AI je čistě přidaná vrstva
 navíc, nikdy náhrada generátoru tréninků.

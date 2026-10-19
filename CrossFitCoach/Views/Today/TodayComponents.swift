@@ -221,19 +221,14 @@ struct BlockCardView: View {
         return notes[blockIndex]
     }
 
-    /// Pro jiný den než dnešek se AI poznámky vůbec nezkouší načítat (viz AppStore),
-    /// takže tam platí jen statická `block.notes` bez čekání.
-    private var isTodayBlock: Bool {
-        store.viewDate == DateUtils.todayString()
-    }
-
     /// Co se má v kartě zobrazit: AI poznámka, pokud už dorazila; jinak statický
-    /// fallback z generátoru JEN pokud jde o jiný den, nebo se AI poznámky reálně
-    /// nepodařilo získat (offline/chyba) — dokud požadavek běží, karta raději nic
-    /// neukáže, než aby na chvíli bliklo "špatné" lokální znění a hned ho přepsala AI.
+    /// fallback z generátoru JEN pokud se AI poznámky reálně nepodařilo získat
+    /// (offline/chyba) — dokud požadavek běží (ať pro dnešek, nebo pro jiný den
+    /// z týdenního pruhu), karta raději nic neukáže, než aby na chvíli bliklo
+    /// "špatné" lokální znění a hned ho přepsala AI.
     private var displayNotes: String? {
         if let note = aiNote { return note }
-        guard !isTodayBlock || store.aiNotesUnavailable else { return nil }
+        guard store.aiNotesUnavailable else { return nil }
         return block.notes.isEmpty ? nil : block.notes
     }
 

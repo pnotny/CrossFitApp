@@ -245,12 +245,13 @@ final class AppStore: ObservableObject {
     // MARK: AI koučovací poznámky
 
     /// Zahodí VŠECHNY předchozí AI poznámky (celý trénink je jiný — nový den/profil/
-    /// délka/regenerace) a pro dnešní den (ne historii) se zkusí načíst nové — tiše
-    /// selže a nechá statické poznámky z generátoru, pokud není síť/AI dostupná.
+    /// délka/regenerace) a zkusí načíst nové pro trénink, který je zrovna zobrazený
+    /// na obrazovce Dnes (ať jde o dnešek, nebo libovolný jiný den z týdenního
+    /// pruhu) — tiše selže a nechá statické poznámky z generátoru, pokud není
+    /// síť/AI dostupná.
     private func refreshAICoachNotes() {
         aiBlockNotes = nil
         aiNotesUnavailable = false
-        guard viewDate == DateUtils.todayString() else { return }
         Task { @MainActor in await loadAICoachNotes() }
     }
 
@@ -262,7 +263,6 @@ final class AppStore: ObservableObject {
     /// odpovědi z AI do existujícího pole přepíše výhradně tenhle jeden index —
     /// poznámky ostatních bloků zůstanou beze změny.
     private func refreshAICoachNote(forBlockIndex index: Int) {
-        guard viewDate == DateUtils.todayString() else { return }
         if var notes = aiBlockNotes, index < notes.count {
             notes[index] = nil
             aiBlockNotes = notes
