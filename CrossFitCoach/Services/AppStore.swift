@@ -426,10 +426,14 @@ final class AppStore: ObservableObject {
         // Jen výběr kandidátů pro UI, ne skutečná generace tréninku — náhodnost tu
         // nijak nevadí, stačí nový seed pro každé zavolání.
         var rng = SeededGenerator(seed: UInt64.random(in: UInt64.min...UInt64.max))
-        let byPattern = WorkoutGenerator.filterPool(profile, categories: nil, using: &rng)
+        // EMOM/AMRAP/ForTime/Chipper blok nenabídne jako náhradu cvik, který patří
+        // jen do samostatného Engine dne (swim) — mimo Engine blok (steady/
+        // intervaly/tabata) by to bylo stejně nereálné jako ve WorkoutGeneratoru.
+        let isEngineBlock: Bool = [.steady, .intervals, .tabata].contains(block.format)
+        let byPattern = WorkoutGenerator.filterPool(profile, categories: nil, excludeStandaloneCardio: !isEngineBlock, using: &rng)
             .filter { $0.pattern == current.pattern && !usedIds.contains($0.id) }
         if !byPattern.isEmpty { return byPattern }
-        return WorkoutGenerator.filterPool(profile, categories: [current.category], using: &rng).filter { !usedIds.contains($0.id) }
+        return WorkoutGenerator.filterPool(profile, categories: [current.category], excludeStandaloneCardio: !isEngineBlock, using: &rng).filter { !usedIds.contains($0.id) }
     }
 
     // MARK: Profil

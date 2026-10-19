@@ -814,7 +814,8 @@ enum ExerciseDatabase {
             standard: nil,
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Plavání v nízkém tempu, kratší úseky s odpočinkem.", criteria: "Zvládne 50 m nepřerušovaně jakýmkoliv způsobem."), intermediate: LevelInfo(desc: "Plavání ve středním tempu na střední vzdálenost.", criteria: "Zvládne 200–400 m v konzistentním tempu."), rx: LevelInfo(desc: "Plavání ve vysokém tempu/intervalech.", criteria: "Udrží rychlé tempo i ve vícenásobných intervalech.")),
             cues: ["Rovnoměrný, kontrolovaný dech", "Dlouhý záběr", "Vodorovná pozice těla"],
-            mistakes: ["Zadržování dechu", "Krátký, uspěchaný záběr", "Propadlé boky ve vodě"]
+            mistakes: ["Zadržování dechu", "Krátký, uspěchaný záběr", "Propadlé boky ve vodě"],
+            standaloneCardioOnly: true
         ),
         Exercise(
             id: "turkish-get-up", name: "Turkish Get-up", category: .strongman, pattern: .fullBody,

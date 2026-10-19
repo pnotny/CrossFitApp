@@ -52,13 +52,18 @@ struct Exercise: Codable, Hashable, Identifiable {
     let levels: ExerciseLevels
     let cues: [String]
     let mistakes: [String]
+    /// True jen pro cviky, které potřebují samostatnou lokaci/vybavení nereálné
+    /// uprostřed EMOM/AMRAP/chipper bloku (typicky "swim" — na pár kalorií
+    /// uprostřed WODu si nikdo neodskočí do bazénu). Takový cvik se vybírá jen
+    /// do samostatného monostrukturálního ("Engine") dne, viz `WorkoutGenerator`.
+    let standaloneCardioOnly: Bool
 
     init(
         id: String, name: String, category: MovementCategory, pattern: MovementPattern,
         muscles: [String], equipment: [Equipment], loadable: Bool,
         oneRMKey: String? = nil, variantMultiplier: Double = 1,
         standard: LoadStandard? = nil, levels: ExerciseLevels,
-        cues: [String], mistakes: [String]
+        cues: [String], mistakes: [String], standaloneCardioOnly: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -73,5 +78,6 @@ struct Exercise: Codable, Hashable, Identifiable {
         self.levels = levels
         self.cues = cues
         self.mistakes = mistakes
+        self.standaloneCardioOnly = standaloneCardioOnly
     }
 }
