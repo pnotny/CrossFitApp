@@ -57,13 +57,22 @@ struct Exercise: Codable, Hashable, Identifiable {
     /// uprostřed WODu si nikdo neodskočí do bazénu). Takový cvik se vybírá jen
     /// do samostatného monostrukturálního ("Engine") dne, viz `WorkoutGenerator`.
     let standaloneCardioOnly: Bool
+    /// True pro cviky, které jsou záměrně kloubně/úchopově šetrnější varianta
+    /// stejného `pattern` (typicky DB/KB verze místo barbellu — např. Dumbbell
+    /// Clean & Jerk má pattern `.olympic`, ale neutrální úchop na DB nezatěžuje
+    /// zápěstí jako barbell). `profile.excludedPatterns` normálně vyřadí celý
+    /// pattern najednou (viz `patternAllowed`) — u takhle otagovaného cviku se
+    /// výjimka neuplatní, protože vylučovaný DŮVOD (např. bolest zápěstí při
+    /// barbell úchopu) na tuhle variantu neplatí.
+    let bypassesPatternExclusion: Bool
 
     init(
         id: String, name: String, category: MovementCategory, pattern: MovementPattern,
         muscles: [String], equipment: [Equipment], loadable: Bool,
         oneRMKey: String? = nil, variantMultiplier: Double = 1,
         standard: LoadStandard? = nil, levels: ExerciseLevels,
-        cues: [String], mistakes: [String], standaloneCardioOnly: Bool = false
+        cues: [String], mistakes: [String], standaloneCardioOnly: Bool = false,
+        bypassesPatternExclusion: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -79,5 +88,6 @@ struct Exercise: Codable, Hashable, Identifiable {
         self.cues = cues
         self.mistakes = mistakes
         self.standaloneCardioOnly = standaloneCardioOnly
+        self.bypassesPatternExclusion = bypassesPatternExclusion
     }
 }

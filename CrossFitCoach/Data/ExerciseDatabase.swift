@@ -367,6 +367,15 @@ enum ExerciseDatabase {
             mistakes: ["Zbytečné pauzy mezi fázemi", "Tvrdé dopady", "Ztráta tempa přechodem"]
         ),
         Exercise(
+            id: "burpee-broad-jump", name: "Burpee Broad Jump", category: .gymnastics, pattern: .fullBody,
+            muscles: ["celé tělo"], equipment: [.none], loadable: false,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: nil,
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Burpee + krátký skok do dálky, pomalé tempo.", criteria: "Zvládne 5 opakování s kontrolovaným dopadem."), intermediate: LevelInfo(desc: "Burpee + broad jump na střední vzdálenost.", criteria: "Zvládne 10+ opakování plynule za sebou."), rx: LevelInfo(desc: "Burpee broad jump ve vysokém tempu na maximální vzdálenost.", criteria: "Udrží tempo 15+ opakování bez ztráty vzdálenosti skoku.")),
+            cues: ["Plynulý přechod burpee → odraz", "Měkký dopad na obě nohy", "Paže pomáhají s odrazem"],
+            mistakes: ["Pauza mezi burpee a skokem", "Tvrdý dopad", "Nekonzistentní vzdálenost skoku"]
+        ),
+        Exercise(
             id: "rope-climb", name: "Rope Climb", category: .gymnastics, pattern: .pull,
             muscles: ["záda", "předloktí", "core"], equipment: [.rope], loadable: false,
             oneRMKey: nil, variantMultiplier: 1,
@@ -481,7 +490,10 @@ enum ExerciseDatabase {
             standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "DB snatch s lehkou činkou, pomalé tempo.", criteria: "Zvládá jednoruční hinge a extenzi s lehkou zátěží."), intermediate: LevelInfo(desc: "DB snatch se střední zátěží, střídání rukou.", criteria: "Zvládne 8+ nepřerušovaných opakování na stranu."), rx: LevelInfo(desc: "DB snatch s RX zátěží ve vysokém objemu.", criteria: "Udrží techniku 15+ opakování na stranu pod únavou.")),
             cues: ["Extenze kyčlí táhne pohyb", "Činka blízko těla", "Rychlý propad pod zámek"],
-            mistakes: ["Tažení pouze paží", "Vzdálená dráha od těla", "Nestabilní zámek nahoře"]
+            mistakes: ["Tažení pouze paží", "Vzdálená dráha od těla", "Nestabilní zámek nahoře"],
+            // Neutrální úchop na DB nezatěžuje zápěstí jako barbell — kdo si
+            // vyloučí pattern "olympic" kvůli zápěstí, o tuhle variantu nepřijde.
+            bypassesPatternExclusion: true
         ),
         Exercise(
             id: "dumbbell-clean-and-jerk", name: "Dumbbell Clean & Jerk", category: .strongman, pattern: .olympic,
@@ -490,7 +502,8 @@ enum ExerciseDatabase {
             standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "DB clean + press s lehkou zátěží po jedné ruce.", criteria: "Zvládá clean a strict press odděleně."), intermediate: LevelInfo(desc: "DB clean & jerk se střední zátěží.", criteria: "Spojí clean a jerk plynule na obě strany."), rx: LevelInfo(desc: "DB clean & jerk s RX zátěží ve vysokém objemu.", criteria: "Udrží techniku i tempo pod únavou na obě strany.")),
             cues: ["Stabilní rack pozice na rameni", "Dip-drive u jerku", "Kontrola při dopadu clean"],
-            mistakes: ["Nestabilní rack na rameni", "Slabý dip před jerkem", "Ztráta rovnováhy do strany"]
+            mistakes: ["Nestabilní rack na rameni", "Slabý dip před jerkem", "Ztráta rovnováhy do strany"],
+            bypassesPatternExclusion: true
         ),
         Exercise(
             id: "dumbbell-thruster", name: "Dumbbell Thruster", category: .strongman, pattern: .squat,
@@ -529,6 +542,15 @@ enum ExerciseDatabase {
             mistakes: ["Přetáčení trupu", "Zadržování dechu", "Nestabilní pozice pytle"]
         ),
         Exercise(
+            id: "sandbag-lunge", name: "Sandbag Lunge", category: .strongman, pattern: .lunge,
+            muscles: ["nohy", "core", "záda"], equipment: [.sandbag], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 30, F: 20), scaled: LoadStandardValues(M: 20, F: 15)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Výpady s lehkým pytlem na ramenou, krátké kroky.", criteria: "Zvládne 10 výpadů s kontrolovanou technikou."), intermediate: LevelInfo(desc: "Sandbag lunge se střední zátěží na vzdálenost.", criteria: "Zvládne 20 m v konzistentním rytmu výpadů."), rx: LevelInfo(desc: "Sandbag lunge s těžkým pytlem na delší vzdálenost.", criteria: "Udrží techniku a tempo i pod únavou na 40 m+.")),
+            cues: ["Vzpřímený trup pod zátěží", "Koleno sleduje směr špičky", "Pevné držení pytle na ramenou"],
+            mistakes: ["Předklon trupu", "Krátký dokrok", "Nestabilní pozice pytle na ramenou"]
+        ),
+        Exercise(
             id: "sled-push", name: "Sled Push", category: .strongman, pattern: .carry,
             muscles: ["nohy", "core", "ramena"], equipment: [.sled], loadable: true,
             oneRMKey: nil, variantMultiplier: 1,
@@ -545,6 +567,18 @@ enum ExerciseDatabase {
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Burpee + DB swing/clean s lehkou zátěží.", criteria: "Zvládá burpee a DB snatch odděleně."), intermediate: LevelInfo(desc: "Devil press se střední zátěží.", criteria: "Spojí burpee a dvouruční DB snatch plynule."), rx: LevelInfo(desc: "Devil press s RX zátěží ve vysokém objemu.", criteria: "Udrží tempo 10+ opakování pod únavou.")),
             cues: ["Hrudník k zemi mezi činkami", "Extenze kyčlí táhne swing nahoru", "Plynulý přechod burpee → snatch"],
             mistakes: ["Neúplný kontakt hrudníku se zemí", "Tažení pouze pažemi", "Ztráta tempa mezi fázemi"]
+        ),
+        Exercise(
+            id: "single-arm-devil-press", name: "Single-Arm Devil Press", category: .strongman, pattern: .fullBody,
+            muscles: ["celé tělo"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Burpee + jednoruční DB swing/snatch s lehkou zátěží, pomalé tempo.", criteria: "Zvládá burpee a jednoruční DB snatch odděleně na obě strany."), intermediate: LevelInfo(desc: "Jednoruký devil press se střední zátěží, střídání rukou.", criteria: "Spojí burpee a jednoruční DB snatch plynule na obě strany."), rx: LevelInfo(desc: "Jednoruký devil press s RX zátěží ve vysokém objemu.", criteria: "Udrží tempo 10+ opakování na stranu pod únavou.")),
+            cues: ["Hrudník k zemi mezi opakováními", "Extenze kyčlí táhne swing nahoru", "Střídej ruce pravidelně"],
+            mistakes: ["Nestejné zatížení/tempo na obě strany", "Tažení pouze paží", "Ztráta tempa při přechodu burpee → snatch"],
+            // Jedna DB místo dvou — jiné zatížení zápěstí/ramen než klasický
+            // dvouruční devil press, viz Exercise.bypassesPatternExclusion.
+            bypassesPatternExclusion: true
         ),
         Exercise(
             id: "good-morning", name: "Good Morning", category: .weightlifting, pattern: .hinge,

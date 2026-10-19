@@ -83,7 +83,7 @@ enum WorkoutGenerator {
     }
 
     static func patternAllowed(_ exercise: Exercise, _ excluded: [MovementPattern]) -> Bool {
-        !excluded.contains(exercise.pattern)
+        exercise.bypassesPatternExclusion || !excluded.contains(exercise.pattern)
     }
 
     /// Cviky vyhovující vybavení/vyloučeným vzorům a úrovni profilu. Cviky nad
