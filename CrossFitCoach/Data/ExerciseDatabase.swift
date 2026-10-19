@@ -27,7 +27,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "overhead-squat", name: "Overhead Squat", category: .weightlifting, pattern: .squat,
             muscles: ["ramena", "core", "kvadricepsy"], equipment: [.barbell, .rack], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "backSquat", variantMultiplier: 0.55,
             standard: LoadStandard(rx: LoadStandardValues(M: 61, F: 43), scaled: LoadStandardValues(M: 34, F: 20)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "OHS s PVC tyčí nebo prázdnou tyčí, nácvik mobility.", criteria: "Udrží tyč nad hlavou v aktivním ramenním zámku po celý air squat."), intermediate: LevelInfo(desc: "OHS s lehkou/střední zátěží.", criteria: "Stabilní overhead pozice i s 20–30 kg."), rx: LevelInfo(desc: "OHS s plnou RX zátěží.", criteria: "Plná hloubka a stabilita nad hlavou i u těžkých vah.")),
             cues: ["Aktivní zámek v ramenou", "Tyč nad středem chodidla", "Pohled mírně nahoru/vpřed"],
@@ -844,7 +844,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "overhead-lunge", name: "Overhead Lunge", category: .weightlifting, pattern: .lunge,
             muscles: ["ramena", "core", "nohy"], equipment: [.barbell], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "backSquat", variantMultiplier: 0.3,
             standard: LoadStandard(rx: LoadStandardValues(M: 34, F: 22), scaled: LoadStandardValues(M: 22, F: 15)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Overhead lunge s PVC tyčí/lehkou zátěží.", criteria: "Udrží tyč nad hlavou v aktivním zámku po celý výpad."), intermediate: LevelInfo(desc: "Overhead lunge se střední zátěží na kratší vzdálenost.", criteria: "Stabilní overhead pozice při 5+ výpadech na nohu."), rx: LevelInfo(desc: "Overhead lunge s vyšší zátěží na delší vzdálenost.", criteria: "Udrží stabilitu nad hlavou i pod únavou na 20 m+.")),
             cues: ["Aktivní zámek v ramenou", "Vzpřímený trup", "Koleno těsně nad zemí ve výpadu"],
@@ -853,7 +853,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "front-rack-lunge", name: "Front Rack Lunge", category: .weightlifting, pattern: .lunge,
             muscles: ["nohy", "core", "ramena"], equipment: [.barbell, .rack], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "frontSquat", variantMultiplier: 0.4,
             standard: LoadStandard(rx: LoadStandardValues(M: 43, F: 29), scaled: LoadStandardValues(M: 29, F: 20)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Front rack lunge s lehkou zátěží, krátké kroky.", criteria: "Udrží rack pozici po celý výpad bez poklesu loktů."), intermediate: LevelInfo(desc: "Front rack lunge se střední zátěží.", criteria: "Stabilní rack pozice při 8+ výpadech na nohu."), rx: LevelInfo(desc: "Front rack lunge s vyšší zátěží na vzdálenost.", criteria: "Udrží techniku i pod únavou na delší vzdálenost.")),
             cues: ["Lokty vysoko po celou dobu", "Vzpřímený trup", "Koleno sleduje směr špičky"],
@@ -862,7 +862,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "barbell-walking-lunge", name: "Barbell Walking Lunge", category: .weightlifting, pattern: .lunge,
             muscles: ["nohy", "hýždě", "core"], equipment: [.barbell, .rack], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "backSquat", variantMultiplier: 0.35,
             standard: LoadStandard(rx: LoadStandardValues(M: 52, F: 34), scaled: LoadStandardValues(M: 34, F: 24)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Walking lunge s lehkou tyčí na zádech.", criteria: "Zvládá 10 výpadů s kontrolovaným krokem bez zátěže."), intermediate: LevelInfo(desc: "Walking lunge se střední zátěží na vzdálenost.", criteria: "Konzistentní rytmus výpadů při 40 %+ 1RM back squatu."), rx: LevelInfo(desc: "Walking lunge s vyšší zátěží na delší vzdálenost.", criteria: "Udrží tempo a formu i pod únavou na 20 m+.")),
             cues: ["Vzpřímený trup", "Dlouhý, kontrolovaný krok", "Koleno těsně nad zemí"],
@@ -871,7 +871,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "floor-press", name: "Floor Press", category: .weightlifting, pattern: .push,
             muscles: ["hrudník", "triceps", "ramena"], equipment: [.barbell], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "benchPress", variantMultiplier: 0.9,
             standard: LoadStandard(rx: LoadStandardValues(M: 52, F: 34), scaled: LoadStandardValues(M: 34, F: 24)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Floor press s prázdnou tyčí, nácvik dráhy.", criteria: "Kontrolovaně spustí a vytlačí tyč v omezeném rozsahu."), intermediate: LevelInfo(desc: "Floor press se střední zátěží.", criteria: "Stabilní dráha tyče při 50 %+ 1RM benče."), rx: LevelInfo(desc: "Floor press s plnou zátěží.", criteria: "Silný a stabilní tlak i u těžkých vah.")),
             cues: ["Lopatky stažené k sobě", "Lokty se lehce dotknou země", "Tyč po přímé dráze nahoru"],
@@ -880,7 +880,7 @@ enum ExerciseDatabase {
         Exercise(
             id: "bent-over-row", name: "Bent Over Row", category: .weightlifting, pattern: .pull,
             muscles: ["záda", "biceps", "zadní deltoid"], equipment: [.barbell], loadable: true,
-            oneRMKey: nil, variantMultiplier: 1,
+            oneRMKey: "deadlift", variantMultiplier: 0.5,
             standard: LoadStandard(rx: LoadStandardValues(M: 52, F: 34), scaled: LoadStandardValues(M: 34, F: 24)),
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Bent over row s lehkou zátěží, kratší rozsah.", criteria: "Udrží hip hinge pozici bez kulacení zad."), intermediate: LevelInfo(desc: "Bent over row se střední zátěží.", criteria: "Kontrolovaný tah k trupu bez švihu při 50 %+ 1RM."), rx: LevelInfo(desc: "Bent over row s plnou zátěží.", criteria: "Silný tah bez ztráty pozice trupu i u těžkých vah.")),
             cues: ["Rovná záda v hip hinge", "Tah lokty vzad, ne nahoru", "Tyč k pupku/dolním žebrům"],

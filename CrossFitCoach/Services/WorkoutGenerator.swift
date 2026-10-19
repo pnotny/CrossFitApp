@@ -173,16 +173,36 @@ enum WorkoutGenerator {
         exercise.muscles.reduce(0) { $0 + (loadMap[$1] ?? 0) }
     }
 
-    static func leastLoadedPick(_ candidates: [Exercise], _ muscleLoad: [String: Int]?, using rng: inout SeededGenerator) -> Exercise? {
+    /// `coveragePriority`: povinné svalové skupiny (viz `MuscleCoverage`), které
+    /// tento týden ještě nebyly zasažené — pokud mezi kandidáty existuje aspoň
+    /// jeden, co některou z nich zasahuje, výběr se na ně zúží ještě PŘED
+    /// vyvažováním zátěže. Prázdná množina (default) = bez vlivu.
+    ///
+    /// Tolerance okolo minima (ne tvrdá přesná shoda) řeší reálně nahlášený bug:
+    /// s přesnou shodou minima se "nejméně zatížená" množina kandidátů často
+    /// zhroutila na jediný prvek (svalová zátěž se mezi stisky "přegenerovat"
+    /// nijak nemění, protože vychází jen z historie, ne ze seedu) — výsledek byl
+    /// naprosto deterministický výběr i s čerstvým náhodným seedem, takže
+    /// "Přegenerovat" u některých cviků (typicky v metcon/EMOM blocích se
+    /// zúženým poolem) viditelně nic neměnilo. Tolerance udrží víc kandidátů v
+    /// užší množině, takže i "přegenerovat" se stejnou historií reálně zamíchá.
+    static func leastLoadedPick(_ candidates: [Exercise], _ muscleLoad: [String: Int]?, coveragePriority: Set<MuscleGroup> = [], using rng: inout SeededGenerator) -> Exercise? {
         guard !candidates.isEmpty else { return nil }
-        guard let muscleLoad, !muscleLoad.isEmpty else { return candidates.randomElement(using: &rng) }
-        let scored = candidates.map { ($0, muscleOverlapScore($0, muscleLoad)) }
+        var pool = candidates
+        if !coveragePriority.isEmpty {
+            let covering = candidates.filter { !MuscleCoverage.groups(for: $0).isDisjoint(with: coveragePriority) }
+            if !covering.isEmpty { pool = covering }
+        }
+        guard let muscleLoad, !muscleLoad.isEmpty else { return pool.randomElement(using: &rng) }
+        let scored = pool.map { ($0, muscleOverlapScore($0, muscleLoad)) }
         let minScore = scored.map(\.1).min() ?? 0
-        let best = scored.filter { $0.1 == minScore }.map(\.0)
+        let maxScore = scored.map(\.1).max() ?? minScore
+        let tolerance = max(1, (maxScore - minScore) / 3)
+        let best = scored.filter { $0.1 <= minScore + tolerance }.map(\.0)
         return best.randomElement(using: &rng)
     }
 
-    static func pickExercises(_ pool: [Exercise], count: Int, avoidPatterns: [MovementPattern], muscleLoad: [String: Int]?, using rng: inout SeededGenerator) -> [Exercise] {
+    static func pickExercises(_ pool: [Exercise], count: Int, avoidPatterns: [MovementPattern], muscleLoad: [String: Int]?, coveragePriority: Set<MuscleGroup> = [], using rng: inout SeededGenerator) -> [Exercise] {
         var usedPatterns = Set<MovementPattern>()
         var usedIds = Set<String>()
         var result: [Exercise] = []
@@ -192,7 +212,7 @@ enum WorkoutGenerator {
             if filtered.isEmpty { filtered = pool.filter { !usedIds.contains($0.id) && !usedPatterns.contains($0.pattern) } }
             if filtered.isEmpty { filtered = pool.filter { !usedIds.contains($0.id) } }
             if filtered.isEmpty { break }
-            guard let pick = leastLoadedPick(filtered, muscleLoad, using: &rng) else { break }
+            guard let pick = leastLoadedPick(filtered, muscleLoad, coveragePriority: coveragePriority, using: &rng) else { break }
             result.append(pick)
             usedIds.insert(pick.id)
             usedPatterns.insert(pick.pattern)
@@ -352,7 +372,13 @@ enum WorkoutGenerator {
         let pool = filterPool(profile, categories: [.weightlifting], history: history, dateString: dateString, using: &rng).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
         let mainCandidates = pool.filter { !avoid.contains($0.pattern) }
         let mainPool = mainCandidates.isEmpty ? pool : mainCandidates
-        let main = leastLoadedPick(mainPool, muscleLoad, using: &rng)
+        // Povinné svalové partie (nohy/záda/hrudník/ramena), co tenhle týden ještě
+        // nebyly zasažené — viz MuscleCoverage. Hlavní zvedaný cvik je nejsilnější
+        // páka, jak je napravit (deadlift/dobré ráno zasáhne záda, bench/push
+        // press hrudník+ramena, dřepy nohy), takže dostane prioritu před čistým
+        // vyvažováním nedávné zátěže.
+        var missing = MuscleCoverage.missingMandatory(history, dateString: dateString)
+        let main = leastLoadedPick(mainPool, muscleLoad, coveragePriority: missing, using: &rng)
 
         let total = profile.timeAvailable
         let strengthMin = clampInt(Int((Double(total) * 0.4 / 5).rounded()) * 5, 12, 40)
@@ -360,6 +386,7 @@ enum WorkoutGenerator {
         var usedPatterns: [MovementPattern] = []
 
         if let main {
+            missing.subtract(MuscleCoverage.groups(for: main))
             let scheme = strengthSetsScheme(profile.level, language)
             let wEx = toWorkoutExercise(main, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg, repsPerSet: scheme.reps)
             usedPatterns.append(main.pattern)
@@ -378,7 +405,8 @@ enum WorkoutGenerator {
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: language == .en ? "Block B · Metcon" : "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
-            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language, using: &rng
+            profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg,
+            coveragePriority: missing, language: language, using: &rng
         ))
         return blocks
     }
@@ -398,7 +426,10 @@ enum WorkoutGenerator {
         let skillOnly = allGymnastics.filter { $0.isSkillPractice }
         let skillPool = (skillOnly.isEmpty ? allGymnastics : skillOnly).filter { !avoid.contains($0.pattern) }
         let skillCandidates = skillPool.isEmpty ? (skillOnly.isEmpty ? allGymnastics : skillOnly) : skillPool
-        let skillPick = leastLoadedPick(skillCandidates, muscleLoad, using: &rng)
+        // Viz MuscleCoverage/buildStrengthDay — stejná týdenní priorita povinných
+        // partií, tady uplatněná na skill pick a následně na EMOM pool.
+        var missing = MuscleCoverage.missingMandatory(history, dateString: dateString)
+        let skillPick = leastLoadedPick(skillCandidates, muscleLoad, coveragePriority: missing, using: &rng)
 
         let total = profile.timeAvailable
         let skillMin = clampInt(Int((Double(total) * 0.3 / 5).rounded()) * 5, 8, 25)
@@ -406,6 +437,7 @@ enum WorkoutGenerator {
         var usedPatterns: [MovementPattern] = []
 
         if let skillPick {
+            missing.subtract(MuscleCoverage.groups(for: skillPick))
             usedPatterns.append(skillPick.pattern)
             let tier = profile.level.tier
             let info = skillPick.levels.info(for: tier)
@@ -421,7 +453,8 @@ enum WorkoutGenerator {
         let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: language == .en ? "Block B · EMOM" : "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
-            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language, using: &rng
+            profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg,
+            coveragePriority: missing, language: language, using: &rng
         ))
         return blocks
     }
@@ -506,7 +539,8 @@ enum WorkoutGenerator {
         let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
         let timeCap = clampInt(profile.timeAvailable, 15, 90)
         let count = clampInt(Int((Double(timeCap) / 6).rounded()), 4, 8)
-        let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad, using: &rng)
+        let missing = MuscleCoverage.missingMandatory(history, dateString: dateString)
+        let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad, coveragePriority: missing, using: &rng)
         let baseReps = [50, 40, 35, 30, 25, 20, 15, 10]
         let exercises = picks.enumerated().map { i, ex in
             toWorkoutExercise(ex, profile, purpose: .metcon, reps: String(i < baseReps.count ? baseReps[i] : 15), note: "", autoreg: autoreg)
@@ -520,15 +554,37 @@ enum WorkoutGenerator {
         )]
     }
 
+    /// Počet opakování/kalorií v metconu podle typu cviku, ne jednotně pro
+    /// všechny — vážené vícekloubové cviky (weightlifting/strongman: deadlift,
+    /// thruster, sandbag carry…) cyklované pod časovým tlakem potřebují citelně
+    /// nižší objem na kolo než bezváhová gymnastika, jinak vyjdou nerealisticky
+    /// vysoká čísla (např. "10×" nebo "15×" na těžký zvedaný cvik). Monostrukturální
+    /// cviky se měří v kaloriích, ne opakováních.
+    private static func metconRepsLabel(_ exercise: Exercise, format: WorkoutFormat, language: AppLanguage) -> String {
+        let isLoadedLift = exercise.category == .weightlifting || exercise.category == .strongman
+        switch format {
+        case .emom:
+            if exercise.category == .monostructural { return language == .en ? "12–15 cals" : "12–15 kalorií" }
+            if exercise.category == .gymnastics { return language == .en ? "8–12 reps" : "8–12 opakování" }
+            return language == .en ? "5–6 reps" : "5–6 opakování"
+        case .forTime:
+            if exercise.category == .monostructural { return language == .en ? "15 cals" : "15 kalorií" }
+            if isLoadedLift { return language == .en ? "8–10 reps" : "8–10 opakování" }
+            return language == .en ? "15 reps" : "15 opakování"
+        default: // .amrap
+            if exercise.category == .monostructural { return language == .en ? "12 cals" : "12 kalorií" }
+            if isLoadedLift { return language == .en ? "6–8 reps" : "6–8 opakování" }
+            return language == .en ? "10 reps" : "10 opakování"
+        }
+    }
+
     static func buildMetconBlock(title: String, format: WorkoutFormat, picks: [Exercise], profile: AthleteProfile, minutes: Int, autoreg: [LoadPurpose: Int], language: AppLanguage = .cs) -> WorkoutBlock {
         var exercises = picks.map { toWorkoutExercise($0, profile, purpose: .metcon, reps: "", note: "", autoreg: autoreg) }
         let note = autoregNote(autoreg, .metcon, language)
 
         if format == .emom {
-            for i in exercises.indices {
-                exercises[i].reps = language == .en
-                    ? (exercises[i].category == .monostructural ? "12–15 cals" : (exercises[i].category == .gymnastics ? "8–12 reps" : "5–6 reps"))
-                    : (exercises[i].category == .monostructural ? "12–15 kalorií" : (exercises[i].category == .gymnastics ? "8–12 opakování" : "5–6 opakování"))
+            for (i, pick) in picks.enumerated() {
+                exercises[i].reps = metconRepsLabel(pick, format: .emom, language: language)
                 exercises[i].note = language == .en ? "Minute \(i + 1) of every cycle" : "Minuta \(i + 1) z každého cyklu"
             }
             return WorkoutBlock(
@@ -540,10 +596,8 @@ enum WorkoutGenerator {
             )
         }
         if format == .forTime {
-            for i in exercises.indices {
-                exercises[i].reps = language == .en
-                    ? (exercises[i].category == .monostructural ? "15 cals" : "15 reps")
-                    : (exercises[i].category == .monostructural ? "15 kalorií" : "15 opakování")
+            for (i, pick) in picks.enumerated() {
+                exercises[i].reps = metconRepsLabel(pick, format: .forTime, language: language)
             }
             let cap = "\(minutes) min"
             let names = exercises.map(\.name).joined(separator: ", ")
@@ -553,10 +607,8 @@ enum WorkoutGenerator {
                 notes: "\(language == .en ? "Time cap" : "Time cap") \(cap). \(language == .en ? "Note your finish time to track progress." : "Piš si čas dokončení pro sledování progresu.")\(note)"
             )
         }
-        for i in exercises.indices {
-            exercises[i].reps = language == .en
-                ? (exercises[i].category == .monostructural ? "12 cals" : "10 reps")
-                : (exercises[i].category == .monostructural ? "12 kalorií" : "10 opakování")
+        for (i, pick) in picks.enumerated() {
+            exercises[i].reps = metconRepsLabel(pick, format: .amrap, language: language)
         }
         return WorkoutBlock(
             title: title, format: .amrap, formatLabel: WorkoutFormat.amrap.label(language), durationMin: minutes, timeCap: nil,
@@ -572,7 +624,7 @@ enum WorkoutGenerator {
     static func buildMetconSegments(
         titlePrefix: String, formatCandidates: [WorkoutFormat], pool: [Exercise], profile: AthleteProfile,
         totalMinutes: Int, baseAvoidPatterns: [MovementPattern], muscleLoad: [String: Int], autoreg: [LoadPurpose: Int],
-        exercisesPerSegment: Int = 3, language: AppLanguage = .cs, using rng: inout SeededGenerator
+        exercisesPerSegment: Int = 3, coveragePriority: Set<MuscleGroup> = [], language: AppLanguage = .cs, using rng: inout SeededGenerator
     ) -> [WorkoutBlock] {
         let format = pickMetconFormat(formatCandidates, profile, using: &rng)
         let numSegments = totalMinutes > 22 ? clampInt(Int((Double(totalMinutes) / 15).rounded()), 2, 4) : 1
@@ -585,7 +637,7 @@ enum WorkoutGenerator {
         for i in 0..<numSegments {
             var segPool = pool.filter { !cumulativeIds.contains($0.id) }
             if segPool.count < exercisesPerSegment { segPool = pool }
-            let picks = pickExercises(segPool, count: exercisesPerSegment, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad, using: &rng)
+            let picks = pickExercises(segPool, count: exercisesPerSegment, avoidPatterns: cumulativePatterns, muscleLoad: muscleLoad, coveragePriority: coveragePriority, using: &rng)
             let label = numSegments > 1 ? "\(titlePrefix) · \(i + 1)/\(numSegments)" : titlePrefix
             var block = buildMetconBlock(title: label, format: format, picks: picks, profile: profile, minutes: segMinutes, autoreg: autoreg, language: language)
             if numSegments > 1 {
