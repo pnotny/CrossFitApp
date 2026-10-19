@@ -23,6 +23,15 @@ import Foundation
 /// Záměrně jen pro barbell (.weightlifting) varianty — DB/KB protějšky (viz
 /// Exercise.bypassesPatternExclusion) zůstávají, jako dnes, volně dostupné
 /// bez programování; jsou lehčí a technicky bezpečnější.
+///
+/// Stejný mechanismus pokrývá i gymnastický kipping/muscle-up buildup: hollow
+/// pozice na zemi → ring row (horizontální tah) → strict pull-up → odtud se
+/// řetězec větví na bar kipping (kipping → chest-to-bar → butterfly → bar
+/// muscle-up) a na ring muscle-up (ring dip → ring muscle-up). Obě ringové
+/// a bar větve sdílejí stejný základ (hollow-rock/ring-row/strict-pull-up),
+/// takže po jeho zvládnutí appka pustí OBĚ navazující dovednosti najednou —
+/// odpovídá to reálnému tréninku, kde se bar kipping a ring dip/press
+/// trénují paralelně, ne jedno po druhém.
 enum SkillProgression {
     struct Chain {
         /// Od nejlehčí varianty k nejtěžší.
@@ -32,7 +41,9 @@ enum SkillProgression {
     static let chains: [Chain] = [
         Chain(steps: ["muscle-clean", "hang-power-clean", "power-clean", "hang-squat-clean", "squat-clean"]),
         Chain(steps: ["muscle-snatch", "snatch-balance", "hang-power-snatch", "power-snatch", "hang-snatch", "snatch"]),
-        Chain(steps: ["push-press", "push-jerk", "split-jerk"])
+        Chain(steps: ["push-press", "push-jerk", "split-jerk"]),
+        Chain(steps: ["hollow-rock", "ring-row", "strict-pull-up", "kipping-pull-up", "chest-to-bar-pull-up", "butterfly-pull-up", "bar-muscle-up"]),
+        Chain(steps: ["hollow-rock", "ring-row", "strict-pull-up", "ring-dip", "ring-muscle-up"])
     ]
 
     /// Laditelné prahy postupu — viz vysvětlení nahoře u typu.
@@ -94,13 +105,18 @@ enum SkillProgression {
         return nil
     }
 
-    /// Z kandidátů vyřadí všechny KROKY definovaných řetězů KROMĚ aktuálního
-    /// kroku dané rodiny. Cviky, co nejsou součástí žádného řetězu, nedotčeny.
+    /// Z kandidátů vyřadí kroky řetězu, které jsou NAD aktuální krok dané rodiny
+    /// (ještě "nevydělané"). Aktuální krok i všechny lehčí/dřívější kroky
+    /// zůstávají dál dostupné — mladší/zažitější drill (hollow-rock, ring-row,
+    /// muscle-clean…) je normální doplňkový cvik i po postupu dál, ne něco, co
+    /// by appka měla po "vystudování" schovávat. Cviky, co nejsou součástí
+    /// žádného řetězu, nedotčeny.
     static func restrictToCurrentStep(_ candidates: [Exercise], history: [Workout], today: String) -> [Exercise] {
         var blocked: Set<String> = []
         for chain in chains {
-            guard let step = currentStep(chain, history: history, today: today) else { continue }
-            blocked.formUnion(chain.steps.filter { $0 != step })
+            guard let step = currentStep(chain, history: history, today: today),
+                  let stepIndex = chain.steps.firstIndex(of: step) else { continue }
+            blocked.formUnion(chain.steps[(stepIndex + 1)...])
         }
         guard !blocked.isEmpty else { return candidates }
         return candidates.filter { !blocked.contains($0.id) }

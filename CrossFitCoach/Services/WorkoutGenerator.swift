@@ -370,8 +370,8 @@ enum WorkoutGenerator {
     static func buildGymnasticsDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let skillPool = filterPool(profile, categories: [.gymnastics], using: &rng).filter { !avoid.contains($0.pattern) }
-        let skillCandidates = skillPool.isEmpty ? filterPool(profile, categories: [.gymnastics], using: &rng) : skillPool
+        let skillPool = filterPool(profile, categories: [.gymnastics], history: history, dateString: dateString, using: &rng).filter { !avoid.contains($0.pattern) }
+        let skillCandidates = skillPool.isEmpty ? filterPool(profile, categories: [.gymnastics], history: history, dateString: dateString, using: &rng) : skillPool
         let skillPick = leastLoadedPick(skillCandidates, muscleLoad, using: &rng)
 
         let total = profile.timeAvailable
