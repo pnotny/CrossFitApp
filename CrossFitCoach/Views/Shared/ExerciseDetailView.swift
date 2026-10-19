@@ -112,7 +112,7 @@ struct ExerciseDetailView: View {
     }
 
     @ViewBuilder
-    private func detailListSection(title: String, items: [String], translator: (String) -> String?, symbol: String, color: Color) -> some View {
+    private func detailListSection(title: String, items: [String], translator: @escaping (String) -> String?, symbol: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .trackedUppercase(0.3)
