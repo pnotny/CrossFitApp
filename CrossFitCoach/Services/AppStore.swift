@@ -244,6 +244,11 @@ final class AppStore: ObservableObject {
         Task { @MainActor in await loadAICoachNotes(onlyApplyingBlockIndex: index) }
     }
 
+    /// Krátký, jednorázový retry na přechodné selhání (např. přepnutí jazyka zároveň
+    /// odpálí dávkový překlad celé databáze cviků — `warmExerciseTranslationsIfNeeded`
+    /// — a obě volání si na free tier Workers AI chvíli "stojí v cestě", takže první
+    /// pokus o dnešní AI poznámky občas vyprší). Teprve když selžou OBA pokusy, je to
+    /// skutečná nedostupnost a UI smí spadnout na statické poznámky z generátoru.
     private func loadAICoachNotes(onlyApplyingBlockIndex: Int? = nil) async {
         guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty,
               let workout = currentWorkout, workout.date == viewDate else {
@@ -251,28 +256,38 @@ final class AppStore: ObservableObject {
             return
         }
         let recentRpe = Array(history.compactMap { $0.rpe }.prefix(5))
-        do {
-            let notes = try await AICoachService.shared.fetchBlockNotes(
-                serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe, language: language
-            )
-            // Mezitím se mohlo přepnout na jiný den/trénink — odpověď už nic neříká
-            // o aktuálně zobrazeném tréninku, tiše ji zahodíme (není to "nedostupnost").
-            guard currentWorkout?.date == workout.date else { return }
-            guard notes.count == workout.blocks.count else {
-                aiNotesUnavailable = true
+
+        for attempt in 0..<2 {
+            if attempt > 0 {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                // Mezitím se mohlo přepnout na jiný den — druhý pokus by jinak
+                // odpovídal na otázku, kterou už nikdo nepoložil.
+                guard currentWorkout?.date == workout.date, viewDate == workout.date else { return }
+            }
+            do {
+                let notes = try await AICoachService.shared.fetchBlockNotes(
+                    serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe, language: language
+                )
+                // Mezitím se mohlo přepnout na jiný den/trénink — odpověď už nic neříká
+                // o aktuálně zobrazeném tréninku, tiše ji zahodíme (není to "nedostupnost").
+                guard currentWorkout?.date == workout.date else { return }
+                guard notes.count == workout.blocks.count else {
+                    aiNotesUnavailable = true
+                    return
+                }
+                if let index = onlyApplyingBlockIndex, var existing = aiBlockNotes, index < existing.count, index < notes.count {
+                    existing[index] = notes[index]
+                    aiBlockNotes = existing
+                } else {
+                    aiBlockNotes = notes.map { $0 as String? }
+                }
                 return
+            } catch {
+                // První pokus tiše zopakujeme (viz nahoře); až po druhém selhání
+                // je to skutečná nedostupnost.
             }
-            if let index = onlyApplyingBlockIndex, var existing = aiBlockNotes, index < existing.count, index < notes.count {
-                existing[index] = notes[index]
-                aiBlockNotes = existing
-            } else {
-                aiBlockNotes = notes.map { $0 as String? }
-            }
-        } catch {
-            // Skutečné selhání (offline/server/AI) — teprve teď UI smí spadnout
-            // na statické poznámky z generátoru, viz `aiNotesUnavailable`.
-            aiNotesUnavailable = true
         }
+        aiNotesUnavailable = true
     }
 
     func saveCurrentWorkout() {
@@ -524,6 +539,12 @@ final class AppStore: ObservableObject {
         guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
         isWarmingTranslations = true
         defer { isWarmingTranslations = false }
+
+        // Krátké zpoždění: tahle dávka běží jen na pozadí a nikam nespěchá, zatímco
+        // dnešní AI koučovací poznámky jsou vidět hned na obrazovce — ať jim (zvlášť
+        // po přepnutí jazyka, kdy se obě volání spustí ve stejnou chvíli) na malém
+        // free tier Workers AI neberou šanci na první pokus.
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
 
         var allTexts: Set<String> = []
         for ex in ExerciseDatabase.all {
