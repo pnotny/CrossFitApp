@@ -21,9 +21,12 @@ final class AppStore: ObservableObject {
     @Published var prLog: [PrEntry]
 
     /// AI koučovací poznámky pro aktuálně zobrazený (dnešní) trénink, jedna na blok,
-    /// stejný počet a pořadí jako `currentWorkout?.blocks`. Nil = nenačtené/selhalo —
-    /// UI v tom případě ukazuje statické `block.notes` z generátoru.
-    @Published var aiBlockNotes: [String]?
+    /// stejný počet a pořadí jako `currentWorkout?.blocks`. Celé pole nil = nenačtené/
+    /// selhalo, žádný blok ještě nemá AI text. Jednotlivý prvek nil = tenhle konkrétní
+    /// blok se (znovu) načítá nebo selhal — ostatní blok si mezitím drží svůj platný
+    /// AI text beze změny/blikání (viz `refreshAICoachNote(forBlockIndex:)`). UI v obou
+    /// nil případech ukazuje statické `block.notes` z generátoru.
+    @Published var aiBlockNotes: [String?]?
 
     // MARK: Přihlášení
     @Published var authUser: AuthUser?
@@ -209,16 +212,32 @@ final class AppStore: ObservableObject {
 
     // MARK: AI koučovací poznámky
 
-    /// Zahodí předchozí AI poznámky (už neodpovídají novému tréninku) a pro dnešní
-    /// den (ne historii) se zkusí načíst nové — tiše selže a nechá statické poznámky
-    /// z generátoru, pokud není síť/AI dostupná.
+    /// Zahodí VŠECHNY předchozí AI poznámky (celý trénink je jiný — nový den/profil/
+    /// délka/regenerace) a pro dnešní den (ne historii) se zkusí načíst nové — tiše
+    /// selže a nechá statické poznámky z generátoru, pokud není síť/AI dostupná.
     private func refreshAICoachNotes() {
         aiBlockNotes = nil
         guard viewDate == DateUtils.todayString() else { return }
         Task { @MainActor in await loadAICoachNotes() }
     }
 
-    private func loadAICoachNotes() async {
+    /// Po výměně jednoho cviku (`swapExercise`): backend vždy vrací poznámky pro
+    /// celý trénink najednou, ale model je generuje nedeterministicky, takže by se
+    /// jinak "náhodou" přepsal i text bloku, který se vůbec nezměnil (např. swap
+    /// v EMOM a text v navazujícím AMRAP se bez důvodu změní). Místo toho zneplatní
+    /// (na statický fallback, bez blikání) jen poznámku konkrétního bloku a po
+    /// odpovědi z AI do existujícího pole přepíše výhradně tenhle jeden index —
+    /// poznámky ostatních bloků zůstanou beze změny.
+    private func refreshAICoachNote(forBlockIndex index: Int) {
+        guard viewDate == DateUtils.todayString() else { return }
+        if var notes = aiBlockNotes, index < notes.count {
+            notes[index] = nil
+            aiBlockNotes = notes
+        }
+        Task { @MainActor in await loadAICoachNotes(onlyApplyingBlockIndex: index) }
+    }
+
+    private func loadAICoachNotes(onlyApplyingBlockIndex: Int? = nil) async {
         guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty,
               let workout = currentWorkout, workout.date == viewDate else { return }
         let recentRpe = Array(history.compactMap { $0.rpe }.prefix(5))
@@ -227,7 +246,12 @@ final class AppStore: ObservableObject {
                 serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe, language: language
             )
             guard notes.count == workout.blocks.count, currentWorkout?.date == workout.date else { return }
-            aiBlockNotes = notes
+            if let index = onlyApplyingBlockIndex, var existing = aiBlockNotes, index < existing.count, index < notes.count {
+                existing[index] = notes[index]
+                aiBlockNotes = existing
+            } else {
+                aiBlockNotes = notes.map { $0 as String? }
+            }
         } catch {
             // Tiché selhání — appka beze změny ukazuje statické poznámky z generátoru.
         }
@@ -316,7 +340,7 @@ final class AppStore: ObservableObject {
         )
         currentWorkout = w
         toast(t("exercise_swapped"))
-        refreshAICoachNotes()
+        refreshAICoachNote(forBlockIndex: blockIndex)
     }
 
     func swapCandidates(blockIndex: Int, exerciseIndex: Int) -> [Exercise] {
