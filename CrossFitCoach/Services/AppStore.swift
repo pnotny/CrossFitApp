@@ -316,6 +316,7 @@ final class AppStore: ObservableObject {
         )
         currentWorkout = w
         toast(t("exercise_swapped"))
+        refreshAICoachNotes()
     }
 
     func swapCandidates(blockIndex: Int, exerciseIndex: Int) -> [Exercise] {
