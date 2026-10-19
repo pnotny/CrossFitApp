@@ -67,6 +67,9 @@ final class AppStore: ObservableObject {
         do {
             authUser = try await AuthService.shared.me(serverUrl: authServerUrl, token: token)
             await syncDown()
+            if language == .en {
+                Task { await warmExerciseTranslationsIfNeeded() }
+            }
         } catch {
             KeychainStore.delete(forKey: Self.authTokenKey)
         }
@@ -82,6 +85,9 @@ final class AppStore: ObservableObject {
             let (token, user) = try await AuthService.shared.login(serverUrl: serverUrl, username: username, password: password)
             persistSession(serverUrl: serverUrl, token: token, user: user)
             await syncDown()
+            if language == .en {
+                Task { await warmExerciseTranslationsIfNeeded() }
+            }
         } catch {
             authError = error.localizedDescription
         }
@@ -97,6 +103,9 @@ final class AppStore: ObservableObject {
             let (token, user) = try await AuthService.shared.register(serverUrl: serverUrl, username: username, password: password)
             persistSession(serverUrl: serverUrl, token: token, user: user)
             syncUp()
+            if language == .en {
+                Task { await warmExerciseTranslationsIfNeeded() }
+            }
         } catch {
             authError = error.localizedDescription
         }
@@ -460,6 +469,41 @@ final class AppStore: ObservableObject {
         storage.getTranslationCache()[cs]
     }
 
+    private var isWarmingTranslations = false
+
+    /// Přeloží celou databázi cviků (svaly, cues, mistakes, popisy úrovní) na pozadí,
+    /// po dávkách, a výsledek uloží do trvalé cache — ať pak otevření libovolného
+    /// cviku v angličtině je okamžité, místo aby appka překládala "za pochodu"
+    /// při prvním zobrazení každého cviku zvlášť. Bezpečné spustit opakovaně
+    /// (přeskočí už přeložené texty) a neběží dvakrát souběžně.
+    func warmExerciseTranslationsIfNeeded() async {
+        guard !isWarmingTranslations else { return }
+        guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty else { return }
+        isWarmingTranslations = true
+        defer { isWarmingTranslations = false }
+
+        var allTexts: Set<String> = []
+        for ex in ExerciseDatabase.all {
+            allTexts.formUnion(ex.muscles)
+            allTexts.formUnion(ex.cues)
+            allTexts.formUnion(ex.mistakes)
+            for info in [ex.levels.beginner, ex.levels.intermediate, ex.levels.rx] {
+                allTexts.insert(info.desc)
+                allTexts.insert(info.criteria)
+            }
+        }
+
+        var cache = storage.getTranslationCache()
+        let missing = allTexts.filter { !$0.isEmpty && cache[$0] == nil }
+        guard !missing.isEmpty else { return }
+
+        for batch in Array(missing).chunked(into: 50) {
+            guard let fetched = try? await AICoachService.shared.translate(serverUrl: authServerUrl, token: token, texts: batch), fetched.count == batch.count else { continue }
+            for (original, translated) in zip(batch, fetched) { cache[original] = translated }
+            storage.setTranslationCache(cache)
+        }
+    }
+
     // MARK: Jazyk
 
     func cycleLanguage() {
@@ -467,6 +511,9 @@ final class AppStore: ObservableObject {
         storage.setLanguage(language)
         regenerateForCurrentProfile()
         syncUp()
+        if language == .en {
+            Task { await warmExerciseTranslationsIfNeeded() }
+        }
     }
 
     /// Zkratka pro statické UI texty — `L.t(key, language)`.
@@ -481,5 +528,12 @@ final class AppStore: ObservableObject {
             try? await Task.sleep(nanoseconds: 2_200_000_000)
             if !Task.isCancelled { toastMessage = nil }
         }
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [self] }
+        return stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }
     }
 }

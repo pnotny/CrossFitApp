@@ -25,10 +25,19 @@ struct ExerciseDetailView: View {
         return store.cachedTranslation(cs)
     }
 
+    /// Svaly se překládají jednotlivě (stejná slova se opakují napříč cviky, takže
+    /// to sdílí cache mnohem lépe než překlad celého spojeného řetězce) a spojí
+    /// se zpátky čárkou až pro zobrazení. Nil, dokud se nepřeloží úplně všechny.
+    private func translatedMusclesText() -> String? {
+        let parts = exercise.muscles.map { tr($0) }
+        guard parts.allSatisfy({ $0 != nil }) else { return nil }
+        return parts.compactMap { $0 }.joined(separator: ", ")
+    }
+
     private func loadTranslationsIfNeeded() async {
         guard store.language == .en else { return }
         let info = exercise.levels.info(for: tier)
-        let candidates = [info.desc, info.criteria, exercise.muscles.joined(separator: ", ")] + exercise.cues + exercise.mistakes
+        let candidates = [info.desc, info.criteria] + exercise.muscles + exercise.cues + exercise.mistakes
         let missing = candidates.filter { !$0.isEmpty && translations[$0] == nil }
         guard !missing.isEmpty else { return }
         let results = await store.translateTexts(missing)
@@ -66,7 +75,7 @@ struct ExerciseDetailView: View {
                     let info = exercise.levels.info(for: tier)
                     detailSection(title: store.t("level_description"), text: tr(info.desc))
                     detailSection(title: store.t("next_level_criteria"), text: tr(info.criteria))
-                    detailSection(title: store.t("muscles_worked"), text: tr(exercise.muscles.joined(separator: ", ")))
+                    detailSection(title: store.t("muscles_worked"), text: translatedMusclesText())
                     detailListSection(title: store.t("coaching_cues"), items: exercise.cues, translator: tr, symbol: "checkmark", color: .green)
                     detailListSection(title: store.t("common_mistakes"), items: exercise.mistakes, translator: tr, symbol: "xmark", color: .red)
                 }
