@@ -394,7 +394,9 @@ async function handlePutUserData(request, env) {
 // AI koučovací poznámky (Cloudflare Workers AI, open-source model)
 // ---------------------------------------------------------------------------
 
-const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+// '@cf/meta/llama-3.1-8b-instruct' byl deprecated (30. 5. 2026) — '-fast' varianta
+// zůstává aktivní a je stejně velký/schopný model, jen jiné jméno.
+const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
 async function handleAIWorkoutNotes(request, env) {
   const user = await getSessionUser(env, getBearerToken(request));
