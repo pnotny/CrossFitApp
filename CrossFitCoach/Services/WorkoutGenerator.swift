@@ -410,10 +410,10 @@ enum WorkoutGenerator {
         let strengthMin = clampInt(Int((Double(total) * 0.4 / 5).rounded()) * 5, 12, 40)
         var blocks: [WorkoutBlock] = []
         var usedPatterns: [MovementPattern] = []
+        let scheme = strengthSetsScheme(profile.level, strengthSessionVariantIndex(history), language)
 
         if let main {
             missing.subtract(MuscleCoverage.groups(for: main))
-            let scheme = strengthSetsScheme(profile.level, strengthSessionVariantIndex(history), language)
             let wEx = toWorkoutExercise(main, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg, repsPerSet: scheme.reps)
             usedPatterns.append(main.pattern)
             let weightLabel = wEx.weight != nil ? "\(formatWeight(wEx.weight!)) kg" : (language == .en ? "per standard" : "dle standardu")
@@ -426,11 +426,43 @@ enum WorkoutGenerator {
             ))
         }
 
-        let metconMinutes = clampInt(total - (main != nil ? strengthMin : 0), 8, 60)
+        // S cílem "Síla" (profile.goal) jde delší trénink přednostně do DRUHÉHO
+        // zvedaného cviku, ne jen do dalšího metconu — uživatel: "co takhle přidat
+        // druhou silovou část namísto metconu? např. když tam mám bench press,
+        // přidej ještě něco na ramena, nebo když tam budu mít squaty, přidej ještě
+        // deadlift." `profile.goal` předtím generátor vůbec nečetl, takže volba
+        // cíle v profilu neměla na skladbu tréninku žádný vliv — delší trénink byl
+        // vždycky jen "víc metconu" bez ohledu na to, co si uživatel zvolil.
+        let buildingFocus = profile.goal == .strength
+        let remainingAfterMain = max(0, total - (main != nil ? strengthMin : 0))
+        var secondMin = 0
+        var secondBlock: WorkoutBlock?
+        if buildingFocus, let main, remainingAfterMain >= 18 {
+            secondMin = clampInt(Int((Double(remainingAfterMain) * 0.5 / 5).rounded()) * 5, 10, 25)
+            let secondPool = mainPool.filter { $0.pattern != main.pattern && $0.id != main.id }
+            if let second = leastLoadedPick(secondPool, muscleLoad, coveragePriority: missing, using: &rng) {
+                missing.subtract(MuscleCoverage.groups(for: second))
+                usedPatterns.append(second.pattern)
+                let wEx2 = toWorkoutExercise(second, profile, purpose: .strength, reps: "\(scheme.sets) × \(scheme.reps)", note: scheme.label, autoreg: autoreg, repsPerSet: scheme.reps)
+                secondBlock = WorkoutBlock(
+                    title: language == .en ? "Block B · Accessory Strength" : "Blok B · Doplňková síla", format: .strength, formatLabel: WorkoutFormat.strength.label(language),
+                    durationMin: secondMin, timeCap: nil, scheme: scheme.label, exercises: [wEx2],
+                    notes: (language == .en
+                        ? "Second compound lift to round out today's strength work, same working weight logic as above."
+                        : "Druhý zvedaný cvik pro doplnění dnešní silové části, stejná logika pracovní váhy jako výše.") + autoregNote(autoreg, .strength, language)
+                )
+            } else {
+                secondMin = 0 // nic vhodného se nenašlo, čas se vrátí metconu
+            }
+        }
+        if let secondBlock { blocks.append(secondBlock) }
+
+        let metconLetter = secondBlock != nil ? "C" : "B"
+        let metconMinutes = clampInt(total - (main != nil ? strengthMin : 0) - secondMin, 8, 60)
         let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
-            titlePrefix: language == .en ? "Block B · Metcon" : "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
+            titlePrefix: language == .en ? "Block \(metconLetter) · Metcon" : "Blok \(metconLetter) · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
             profile: profile, totalMinutes: metconMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg,
             coveragePriority: missing, language: language, using: &rng
         ))
@@ -475,10 +507,39 @@ enum WorkoutGenerator {
             ))
         }
 
-        let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0), 8, 65)
+        // Stejná logika jako u buildStrengthDay — s cílem "Síla" nebo "Skill" jde
+        // delší trénink přednostně do DRUHÉHO technického cviku, ne jen do dalšího
+        // EMOMu, ať delší skill den opravdu znamená víc budování dovednosti, ne
+        // jen víc kondičního objemu.
+        let buildingFocus = profile.goal == .strength || profile.goal == .skill
+        let remainingAfterSkill = max(0, total - (skillPick != nil ? skillMin : 0))
+        var secondMin = 0
+        var secondBlock: WorkoutBlock?
+        if buildingFocus, let skillPick, remainingAfterSkill >= 18 {
+            secondMin = clampInt(Int((Double(remainingAfterSkill) * 0.5 / 5).rounded()) * 5, 8, 20)
+            let secondPool = skillCandidates.filter { $0.pattern != skillPick.pattern && $0.id != skillPick.id }
+            if let second = leastLoadedPick(secondPool, muscleLoad, coveragePriority: missing, using: &rng) {
+                missing.subtract(MuscleCoverage.groups(for: second))
+                usedPatterns.append(second.pattern)
+                let tier = profile.level.tier
+                let info2 = second.levels.info(for: tier)
+                let wEx2 = toWorkoutExercise(second, profile, purpose: .technique, reps: language == .en ? "5 × 3–5 quality reps" : "5 × 3–5 kvalitních opakování", note: language == .en ? "Technique practice" : "Technický nácvik", autoreg: autoreg)
+                secondBlock = WorkoutBlock(
+                    title: language == .en ? "Block B · Skill" : "Blok B · Skill", format: .strength, formatLabel: language == .en ? "Technique" : "Technika",
+                    durationMin: secondMin, timeCap: nil, scheme: language == .en ? "5 sets, focus on quality" : "5 sérií, důraz na kvalitu", exercises: [wEx2],
+                    notes: "\(language == .en ? "Criteria to advance" : "Kritérium postupu"): \(info2.criteria)"
+                )
+            } else {
+                secondMin = 0
+            }
+        }
+        if let secondBlock { blocks.append(secondBlock) }
+
+        let emomLetter = secondBlock != nil ? "C" : "B"
+        let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0) - secondMin, 8, 65)
         let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
         blocks.append(contentsOf: buildMetconSegments(
-            titlePrefix: language == .en ? "Block B · EMOM" : "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
+            titlePrefix: language == .en ? "Block \(emomLetter) · EMOM" : "Blok \(emomLetter) · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
             profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg,
             coveragePriority: missing, language: language, using: &rng
         ))

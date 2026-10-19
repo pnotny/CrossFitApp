@@ -451,8 +451,13 @@ final class AppStore: ObservableObject {
         // deadlift/front squat/back squat (hinge/squat pattern) jako alternativu,
         // přestože by při normální generaci byly stejně "na stole".
         if block.format == .strength, current.category == .weightlifting {
+            // S "Síla" cílem může mít den DVA silové bloky (hlavní + doplňkový,
+            // viz buildStrengthDay) — kandidáti proto vylučují cviky použité v
+            // libovolném silovém bloku dnešního tréninku, ne jen v tomhle jednom,
+            // ať swap nenabídne stejný cvik, co už běží ve druhém bloku.
+            let usedAcrossStrengthBlocks = Set(w.blocks.filter { $0.format == .strength }.flatMap { $0.exercises.map(\.exerciseId) })
             let broad = WorkoutGenerator.filterPool(profile, categories: [.weightlifting], using: &rng)
-                .filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) && !usedIds.contains($0.id) }
+                .filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) && !usedAcrossStrengthBlocks.contains($0.id) }
             if !broad.isEmpty { return broad }
         }
         let byPattern = WorkoutGenerator.filterPool(profile, categories: nil, excludeStandaloneCardio: !isEngineBlock, using: &rng)
