@@ -28,6 +28,7 @@ enum ExerciseDifficulty {
         "split-jerk": .intermediate,
         "snatch-balance": .intermediate,
         "muscle-snatch": .intermediate,
+        "muscle-clean": .intermediate,
         "snatch-pull": .intermediate,
         "clean-pull": .intermediate,
         // Cluster = squat-clean + thruster v každém opakování — aspoň tak
