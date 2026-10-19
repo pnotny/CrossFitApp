@@ -318,8 +318,13 @@ final class AppStore: ObservableObject {
     }
 
     func saveCurrentWorkout() {
-        guard let w = currentWorkout else { return }
+        guard var w = currentWorkout else { return }
+        // Explicitní uložení vždy ruší "implicitní" značku (viz
+        // toggleWorkoutCompleted) — od teď je to záznam, co si uživatel sám
+        // vědomě uložil, ne jen vedlejší efekt zaškrtnutí "splněno".
+        w.completedOnlySave = false
         history = storage.saveWorkoutToHistory(w)
+        currentWorkout = w
         currentWorkoutSaved = true
         toast(t("workout_saved_to_history"))
         syncUp()
@@ -345,9 +350,35 @@ final class AppStore: ObservableObject {
 
     /// Odškrtnutí "splnil jsem tenhle trénink" na kartě Dnes — nezávislé na tom,
     /// jestli je trénink jen uložený/naplánovaný (viz `saveCurrentWorkout`).
+    ///
+    /// Nahlášený bug: zaškrtnutí "splněno" u NEULOŽENÉHO draftu tiše udělalo
+    /// plné uložení do historie (stejný efekt jako tlačítko "Uložit"), ale
+    /// odškrtnutí zpátky tohle uložení nijak nevracelo — trénink zůstal v
+    /// historii a tlačítko "Smazat" šlo pořád použít, i když uživatel nikdy
+    /// sám "Uložit" nestiskl. `completedOnlySave` rozlišuje tenhle "implicitní"
+    /// případ od skutečného explicitního uložení: odškrtnutí u čistě
+    /// implicitního záznamu ho z historie rovnou smaže a vrátí trénink zpátky
+    /// do neuloženého draftu, místo aby nechalo "zombie" uložený záznam.
     func toggleWorkoutCompleted() {
         guard var w = currentWorkout else { return }
-        w.completed = !(w.completed ?? false)
+        let turningOn = !(w.completed ?? false)
+
+        if !turningOn, w.completedOnlySave == true {
+            w.completed = false
+            w.completedOnlySave = nil
+            history = storage.deleteWorkout(for: w.date)
+            currentWorkout = w
+            currentWorkoutSaved = false
+            draftWorkoutsByDate[viewDate] = w
+            toast(t("completion_cleared"))
+            syncUp()
+            return
+        }
+
+        w.completed = turningOn
+        if turningOn, !currentWorkoutSaved {
+            w.completedOnlySave = true
+        }
         history = storage.saveWorkoutToHistory(w)
         currentWorkout = w
         currentWorkoutSaved = true

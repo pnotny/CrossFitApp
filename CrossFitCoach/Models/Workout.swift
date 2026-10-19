@@ -52,6 +52,13 @@ struct Workout: Codable, Hashable, Identifiable {
     /// se STEJNÝM seedem a dostat bit přesně stejný výběr cviků, jen přeložený text,
     /// místo aby se cviky při každém přepnutí jazyka znovu (a jinak) vylosovaly.
     var variantSeed: UInt64?
+    /// True jen pro záznam, co v historii existuje VÝHRADNĚ jako vedlejší efekt
+    /// zaškrtnutí "splněno" na kartě Dnes — uživatel nikdy sám nestiskl
+    /// "Uložit trénink". Optional s bezpečným výchozím "ne" (nil = false), ať
+    /// starší uložené tréninky (bez tohoto pole) nikdy omylem nespadnou pod
+    /// auto-smazání při odškrtnutí "splněno" — viz
+    /// `AppStore.toggleWorkoutCompleted`/`saveCurrentWorkout`.
+    var completedOnlySave: Bool?
 
     var id: String { date }
     var totalMinutes: Int { blocks.reduce(0) { $0 + $1.durationMin } }

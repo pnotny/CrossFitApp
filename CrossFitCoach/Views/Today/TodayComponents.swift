@@ -185,22 +185,28 @@ struct RpeCard: View {
             Text(store.t("rpe_hint"))
                 .font(.system(size: 12))
                 .foregroundColor(DT.fgMuted)
-            HStack(spacing: 6) {
-                ForEach(1...10, id: \.self) { value in
-                    Button {
-                        store.saveRpe(value)
-                    } label: {
-                        Text("\(value)")
-                            .font(.system(size: 13, weight: .heavy))
-                            .frame(width: 26, height: 26)
-                            .background(currentRpe == value ? DT.accent : DT.surfaceRaised)
-                            .foregroundColor(currentRpe == value ? DT.accentInk : DT.fg)
-                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            // Horizontální ScrollView místo prosté HStack — 10 tlačítek (1–10) se na
+            // užších telefonech nevejde do jednoho řádku, stejně jako u
+            // DurationPickerCard (viz tam) — bez ní by přetékala přes okraj karty.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(1...10, id: \.self) { value in
+                        Button {
+                            store.saveRpe(value)
+                        } label: {
+                            Text("\(value)")
+                                .font(.system(size: 13, weight: .heavy))
+                                .frame(width: 26, height: 26)
+                                .background(currentRpe == value ? DT.accent : DT.surfaceRaised)
+                                .foregroundColor(currentRpe == value ? DT.accentInk : DT.fg)
+                                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
 }
