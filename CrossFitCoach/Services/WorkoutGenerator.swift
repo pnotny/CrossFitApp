@@ -97,7 +97,17 @@ enum WorkoutGenerator {
     /// jako "swim" (viz Exercise.standaloneCardioOnly) tam nepatří, protože je
     /// nereálné je uprostřed WODu reálně zařadit. Samostatný monostrukturální
     /// ("Engine") den naopak false nechává, tam dává swim smysl.
-    static func filterPool(_ profile: AthleteProfile, categories: [MovementCategory]?, excludeStandaloneCardio: Bool = false, using rng: inout SeededGenerator) -> [Exercise] {
+    ///
+    /// `history`/`dateString`: dokud se nezadá historie, žádná "programová"
+    /// posloupnost se neuplatní (viz `SkillProgression`) — bez ní by beginner
+    /// měl mezi ungatovanými clean/snatch/jerk druhy pořád úplně nahodilý výběr
+    /// (jeden den muscle-snatch, druhý hang-power-clean, bez logiky). S historií
+    /// se to zúží na aktuální krok řetězu dané rodiny, dokud ho nezažije dost
+    /// odcvičených sessions (nebo neuplyne max. počet týdnů) a nepostoupí dál.
+    static func filterPool(
+        _ profile: AthleteProfile, categories: [MovementCategory]?, excludeStandaloneCardio: Bool = false,
+        history: [Workout] = [], dateString: String = DateUtils.todayString(), using rng: inout SeededGenerator
+    ) -> [Exercise] {
         let eligible = ExerciseDatabase.all.filter { ex in
             (categories == nil || categories!.contains(ex.category)) &&
             equipmentOk(ex, profile.equipment) &&
@@ -105,8 +115,9 @@ enum WorkoutGenerator {
             (!excludeStandaloneCardio || !ex.standaloneCardioOnly)
         }
         let tier = profile.level.tier
-        let core = eligible.filter { ExerciseDifficulty.isCore($0, for: tier) }
+        var core = eligible.filter { ExerciseDifficulty.isCore($0, for: tier) }
         guard tier != .rx else { return core }
+        core = SkillProgression.restrictToCurrentStep(core, history: history, today: dateString)
         let intro = ExerciseDifficulty.introductionCandidates(eligible, for: tier)
         guard !intro.isEmpty, Double.random(in: 0..<1, using: &rng) < 0.25, let pick = intro.randomElement(using: &rng) else { return core }
         return core + [pick]
@@ -322,7 +333,7 @@ enum WorkoutGenerator {
     static func buildStrengthDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let pool = filterPool(profile, categories: [.weightlifting], using: &rng).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
+        let pool = filterPool(profile, categories: [.weightlifting], history: history, dateString: dateString, using: &rng).filter { [.squat, .hinge, .push, .olympic].contains($0.pattern) }
         let mainCandidates = pool.filter { !avoid.contains($0.pattern) }
         let mainPool = mainCandidates.isEmpty ? pool : mainCandidates
         let main = leastLoadedPick(mainPool, muscleLoad, using: &rng)
@@ -347,7 +358,7 @@ enum WorkoutGenerator {
         }
 
         let metconMinutes = clampInt(total - (main != nil ? strengthMin : 0), 8, 60)
-        let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, using: &rng)
+        let metconPool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
             .filter { !usedPatterns.contains($0.pattern) || $0.category == .monostructural }
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: language == .en ? "Block B · Metcon" : "Blok B · Metcon", formatCandidates: [.amrap, .emom, .forTime], pool: metconPool,
@@ -381,7 +392,7 @@ enum WorkoutGenerator {
         }
 
         let emomMinutes = clampInt(total - (skillPick != nil ? skillMin : 0), 8, 65)
-        let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman], excludeStandaloneCardio: true, using: &rng)
+        let emomPool = filterPool(profile, categories: [.gymnastics, .monostructural, .weightlifting, .strongman], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
         blocks.append(contentsOf: buildMetconSegments(
             titlePrefix: language == .en ? "Block B · EMOM" : "Blok B · EMOM", formatCandidates: [.emom, .amrap], pool: emomPool,
             profile: profile, totalMinutes: emomMinutes, baseAvoidPatterns: usedPatterns + Array(avoid), muscleLoad: muscleLoad, autoreg: autoreg, language: language, using: &rng
@@ -466,7 +477,7 @@ enum WorkoutGenerator {
     static func buildChipperDay(_ profile: AthleteProfile, _ dateString: String, _ history: [Workout], _ autoreg: [LoadPurpose: Int], _ language: AppLanguage = .cs, using rng: inout SeededGenerator) -> [WorkoutBlock] {
         let avoid = recoveryAvoidPatterns(history, dateString)
         let muscleLoad = recentMuscleLoad(history, dateString, daysBack: 7)
-        let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, using: &rng)
+        let pool = filterPool(profile, categories: [.gymnastics, .monostructural, .strongman, .weightlifting], excludeStandaloneCardio: true, history: history, dateString: dateString, using: &rng)
         let timeCap = clampInt(profile.timeAvailable, 15, 90)
         let count = clampInt(Int((Double(timeCap) / 6).rounded()), 4, 8)
         let picks = pickExercises(pool, count: count, avoidPatterns: Array(avoid), muscleLoad: muscleLoad, using: &rng)
