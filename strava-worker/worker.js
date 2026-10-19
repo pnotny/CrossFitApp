@@ -398,6 +398,26 @@ async function handlePutUserData(request, env) {
 // zůstává aktivní a je stejně velký/schopný model, jen jiné jméno.
 const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
+// Modely Workers AI nevrací vždy `{ response: "...text..." }` — někdy je response
+// rovnou pole/objekt, jindy string obalený v markdownu apod. Tahle funkce z toho
+// za všech okolností zkusí vytáhnout JSON pole řetězců.
+function extractStringArray(result) {
+  if (!result) return null;
+  let raw = (typeof result === 'object' && 'response' in result) ? result.response : result;
+  if (Array.isArray(raw) && raw.every((x) => typeof x === 'string')) return raw;
+  if (typeof raw !== 'string') {
+    try { raw = JSON.stringify(raw); } catch { raw = String(raw); }
+  }
+  const match = raw.match(/\[[\s\S]*\]/);
+  if (!match) return { __raw: raw };
+  try {
+    const parsed = JSON.parse(match[0]);
+    return Array.isArray(parsed) ? parsed : { __raw: raw };
+  } catch {
+    return { __raw: raw };
+  }
+}
+
 async function handleAIWorkoutNotes(request, env) {
   const user = await getSessionUser(env, getBearerToken(request));
   if (!user) return json({ error: 'unauthorized' }, env, 401);
@@ -438,14 +458,9 @@ async function handleAIWorkoutNotes(request, env) {
       ]
     });
 
-    const raw = (result && result.response) || '';
-    const match = raw.match(/\[[\s\S]*\]/);
-    let notes = null;
-    try { notes = match ? JSON.parse(match[0]) : null; } catch (parseErr) {
-      console.log('ai/workout-notes: JSON.parse failed', parseErr.message, 'raw:', raw);
-    }
+    const notes = extractStringArray(result);
     if (!Array.isArray(notes) || notes.length !== blocks.length || !notes.every((n) => typeof n === 'string')) {
-      console.log('ai/workout-notes: validation failed', { expectedCount: blocks.length, raw });
+      console.log('ai/workout-notes: validation failed', { expectedCount: blocks.length, result: notes });
       return json({ error: 'unexpected AI output' }, env, 502);
     }
     return json({ notes }, env);
@@ -482,14 +497,9 @@ async function handleAITranslate(request, env) {
       ]
     });
 
-    const raw = (result && result.response) || '';
-    const match = raw.match(/\[[\s\S]*\]/);
-    let translations = null;
-    try { translations = match ? JSON.parse(match[0]) : null; } catch (parseErr) {
-      console.log('ai/translate: JSON.parse failed', parseErr.message, 'raw:', raw);
-    }
+    const translations = extractStringArray(result);
     if (!Array.isArray(translations) || translations.length !== texts.length || !translations.every((t) => typeof t === 'string')) {
-      console.log('ai/translate: validation failed', { expectedCount: texts.length, texts, raw });
+      console.log('ai/translate: validation failed', { expectedCount: texts.length, texts, result: translations });
       return json({ error: 'unexpected AI output' }, env, 502);
     }
     console.log('ai/translate: ok', { texts, translations });
