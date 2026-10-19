@@ -38,6 +38,12 @@ enum MovementPattern: String, Codable, CaseIterable, Hashable {
     case fullBody = "full-body"
     case olympic
     case monostructural
+    /// Jednokloubové doplňkové cviky (bicep curl, triceps extension, lateral
+    /// raise…) — záměrně oddělené od `.push`/`.pull`, aby se nikdy nedostaly do
+    /// poolu hlavního/druhého zvedaného cviku (ten filtruje přesně
+    /// [.squat, .hinge, .push, .olympic]), ale šly vybrat jako dedikovaný
+    /// doplňkový (třetí) pick na silovém dni — viz `buildStrengthDay`.
+    case isolation
 
     var label: String {
         switch self {
@@ -53,6 +59,7 @@ enum MovementPattern: String, Codable, CaseIterable, Hashable {
         case .fullBody: return "Celé tělo"
         case .olympic: return "Vzpírání (Oly)"
         case .monostructural: return "Monostrukturální"
+        case .isolation: return "Izolace"
         }
     }
 
@@ -71,6 +78,7 @@ enum MovementPattern: String, Codable, CaseIterable, Hashable {
         case .fullBody: return "Full body"
         case .olympic: return "Weightlifting (Oly)"
         case .monostructural: return "Monostructural"
+        case .isolation: return "Isolation"
         }
     }
 }

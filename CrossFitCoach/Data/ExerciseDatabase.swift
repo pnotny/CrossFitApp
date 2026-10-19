@@ -886,6 +886,47 @@ enum ExerciseDatabase {
             cues: ["Rovná záda v hip hinge", "Tah lokty vzad, ne nahoru", "Tyč k pupku/dolním žebrům"],
             mistakes: ["Kulacení zad", "Švihání trupem", "Neúplný rozsah tahu"]
         ),
+        // Jednokloubové doplňkové (isolation) cviky — viz MovementPattern.isolation.
+        // Přidáno na žádost uživatele pro "Síla" den, kde se vedle 2 hlavních
+        // vícekloubových cviků (např. dřep + mrtvý tah) hodí i menší doplňkový
+        // cvik na konkrétní svalovou skupinu (typicky biceps/triceps/ramena),
+        // ne jen další velký compound lift.
+        Exercise(
+            id: "barbell-bicep-curl", name: "Barbell Bicep Curl", category: .weightlifting, pattern: .isolation,
+            muscles: ["biceps"], equipment: [.barbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 40, F: 20), scaled: LoadStandardValues(M: 25, F: 12)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Bicep curl s lehkou zátěží, pomalé tempo.", criteria: "Zvládne 10 opakování bez švihu trupem."), intermediate: LevelInfo(desc: "Bicep curl se střední zátěží.", criteria: "Udrží lokty u těla po celou dobu pohybu."), rx: LevelInfo(desc: "Bicep curl s vyšší zátěží ve více sériích.", criteria: "Plný rozsah a kontrola i v poslední sérii.")),
+            cues: ["Lokty pevně u těla", "Žádný švih kyčlemi/zády", "Pomalá kontrolovaná excentrika"],
+            mistakes: ["Švihání trupem (cheat curl)", "Pohyb loktů vpřed", "Neúplný rozsah nahoře/dole"]
+        ),
+        Exercise(
+            id: "dumbbell-bicep-curl", name: "Dumbbell Bicep Curl", category: .weightlifting, pattern: .isolation,
+            muscles: ["biceps"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 15, F: 8), scaled: LoadStandardValues(M: 9, F: 5)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "DB bicep curl s lehkou zátěží, pomalé tempo.", criteria: "Zvládne 10 opakování bez švihu trupem."), intermediate: LevelInfo(desc: "DB bicep curl se střední zátěží.", criteria: "Udrží lokty u těla po celou dobu pohybu."), rx: LevelInfo(desc: "DB bicep curl s vyšší zátěží ve více sériích.", criteria: "Plný rozsah a kontrola i v poslední sérii.")),
+            cues: ["Lokty pevně u těla", "Žádný švih kyčlemi/zády", "Pomalá kontrolovaná excentrika"],
+            mistakes: ["Švihání trupem (cheat curl)", "Pohyb loktů vpřed", "Neúplný rozsah nahoře/dole"]
+        ),
+        Exercise(
+            id: "dumbbell-triceps-extension", name: "Dumbbell Triceps Extension", category: .weightlifting, pattern: .isolation,
+            muscles: ["triceps"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 20, F: 10), scaled: LoadStandardValues(M: 12, F: 6)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Overhead triceps extension s lehkou zátěží, menší rozsah.", criteria: "Zvládne 10 opakování s kontrolou loktů."), intermediate: LevelInfo(desc: "Overhead triceps extension se střední zátěží.", criteria: "Udrží lokty u hlavy po celou dobu pohybu."), rx: LevelInfo(desc: "Overhead triceps extension s vyšší zátěží.", criteria: "Plný rozsah a kontrola i v poslední sérii.")),
+            cues: ["Lokty u hlavy, nehýbou se do stran", "Pomalá kontrolovaná excentrika", "Plné natažení nahoře"],
+            mistakes: ["Rozjíždějící se lokty", "Prohnutí v zádech", "Neúplný rozsah"]
+        ),
+        Exercise(
+            id: "dumbbell-lateral-raise", name: "Dumbbell Lateral Raise", category: .weightlifting, pattern: .isolation,
+            muscles: ["ramena"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 10, F: 5), scaled: LoadStandardValues(M: 6, F: 3)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Lateral raise s velmi lehkou zátěží, menší rozsah.", criteria: "Zvládne 10 opakování bez švihu."), intermediate: LevelInfo(desc: "Lateral raise se střední zátěží do výšky ramen.", criteria: "Udrží mírně pokrčené lokty, žádný švih."), rx: LevelInfo(desc: "Lateral raise s vyšší zátěží ve více sériích.", criteria: "Kontrolovaný pohyb i v poslední sérii bez švihu.")),
+            cues: ["Mírně pokrčené lokty", "Zvedej do výšky ramen, ne výš", "Žádný švih trupem"],
+            mistakes: ["Švihání trupem/hybnost", "Zvedání nad úroveň ramen", "Vedení pohybu trapézy místo ramen"]
+        ),
         Exercise(
             id: "deficit-deadlift", name: "Deficit Deadlift", category: .weightlifting, pattern: .hinge,
             muscles: ["hamstringy", "hýždě", "záda"], equipment: [.barbell, .box], loadable: true,
