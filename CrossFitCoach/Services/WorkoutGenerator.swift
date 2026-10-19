@@ -409,12 +409,44 @@ enum WorkoutGenerator {
             )]
         }
         if format == .intervals {
+            // Nad ~40 min je dost času i na objemovější variantu (víc kol, kratší
+            // odpočinek — "15× 500 m" styl) místo běžných delších intervalů s
+            // vydatnějším odpočinkem. Volba kostkou, ať se dny neopakují stejně.
+            let highVolume = total >= 40 && Double.random(in: 0..<1, using: &rng) < 0.5
+            if highVolume {
+                let rounds = clampInt(Int((Double(total) / 4).rounded()), 10, 18)
+                wEx.reps = language == .en ? "\(rounds) × 500 m / 60 s rest" : "\(rounds) × 500 m / 60 s odpočinek"
+                return [WorkoutBlock(
+                    title: language == .en ? "Engine · Intervals (high volume)" : "Engine · Intervaly (vysoký objem)",
+                    format: format, formatLabel: WorkoutFormat.intervals.label(language),
+                    durationMin: total, timeCap: nil,
+                    scheme: language == .en ? "\(rounds) short intervals, short rest" : "\(rounds) krátkých intervalů, krátký odpočinek", exercises: [wEx],
+                    notes: language == .en
+                        ? "High volume, shorter rest — hold one consistent, repeatable pace across all rounds rather than going out too hard."
+                        : "Vysoký objem, kratší odpočinek — držet jedno konzistentní, opakovatelné tempo napříč všemi koly místo prvních rychlých kol."
+                )]
+            }
             let rounds = clampInt(Int((Double(total) / 6).rounded()), 4, 14)
             wEx.reps = language == .en ? "\(rounds) × 500 m (or 90 s) / 90 s rest" : "\(rounds) × 500 m (nebo 90 s) / 90 s odpočinek"
             return [WorkoutBlock(
                 title: "Engine · Intervaly", format: format, formatLabel: WorkoutFormat.intervals.label(language),
                 durationMin: total, timeCap: nil, scheme: language == .en ? "\(rounds) intervals with steady rest" : "\(rounds) intervalů se stálým odpočinkem", exercises: [wEx],
                 notes: language == .en ? "Keep a consistent pace/split across all rounds." : "Udržuj konzistentní tempo/split napříč všemi koly."
+            )]
+        }
+        // Nad ~45 min se místo běžného steady state dá občas (kostkou) zařadit
+        // dlouhý vytrvalostní blok — obdoba "dlouhého běhu", jen formulovaná
+        // obecně přes vzdálenost/čas, ať sedí na běh/kolo/veslování stejně.
+        let longSession = total >= 45 && Double.random(in: 0..<1, using: &rng) < 0.4
+        if longSession {
+            wEx.reps = language == .en ? "\(total) min continuous, zone 2 (~8–12 km if running/cycling/rowing)" : "\(total) min v jednom tahu, zóna 2 (~8–12 km při běhu/kole/veslování)"
+            return [WorkoutBlock(
+                title: language == .en ? "Engine · Long" : "Engine · Dlouhý",
+                format: .steady, formatLabel: WorkoutFormat.steady.label(language),
+                durationMin: total, timeCap: nil, scheme: language == .en ? "Long continuous effort" : "Dlouhý souvislý výkon", exercises: [wEx],
+                notes: language == .en
+                    ? "Long aerobic build — conversational pace the whole way, resist the urge to push harder in the middle."
+                    : "Dlouhý aerobní blok — konverzační tempo po celou dobu, uprostřed neponičej síly zbytečným zrychlováním."
             )]
         }
         wEx.reps = language == .en ? "\(total) minutes at steady pace (zone 2–3)" : "\(total) minut v konstantním tempu (zóna 2–3)"
@@ -532,6 +564,24 @@ enum WorkoutGenerator {
         return Int(total.rounded())
     }
 
+    /// Pár variant odpočinkové poznámky (mobilita + mentální/spánková regenerace),
+    /// aby odpočinkový den nebyl pořád slovo od slova stejný. Výběr přes `rng`, ať
+    /// je deterministický pro stejný den/seed (viz `generateWorkout`).
+    static func restDayNotes(_ language: AppLanguage, using rng: inout SeededGenerator) -> String {
+        let variantsCS = [
+            "Lehké strečování, mobilita kyčlí a ramen, procházka. Žádná intenzivní zátěž. Věnuj pozornost i regeneraci mimo tělo — 5–10 minut klidného dýchání nebo krátká meditace pomůžou nervové soustavě se restartovat, a dostatek spánku (7–9 hodin) je pro regeneraci svalů důležitější než jakýkoli trénink.",
+            "Dnes žádný trénink — jen pohyb pro radost: procházka, lehké jízdní kolo nebo klidné plavání. Doplň tekutiny a bílkoviny a dej si čas na kvalitní spánek. Zkus pár minut mindfulness nebo dechového cvičení (např. 4-7-8 dýchání) — pomáhá snížit stres a urychlit regeneraci nervové soustavy.",
+            "Odpočinkový den je součást tréninku, ne jeho přerušení. Mobilita kyčlí/ramen, lehké strečování, procházka v přírodě. Zkus večer odložit telefon o něco dřív a věnovat 10 minut tichu nebo meditaci — regenerace hlavy je stejně důležitá jako regenerace svalů."
+        ]
+        let variantsEN = [
+            "Light stretching, hip and shoulder mobility, a walk. No intense load. Give recovery outside the gym some attention too — 5–10 minutes of calm breathing or a short meditation help reset your nervous system, and 7–9 hours of sleep matters more for muscle recovery than any workout.",
+            "No training today — just movement for joy: a walk, an easy bike ride, or relaxed swimming. Rehydrate, get enough protein, and protect your sleep. Try a few minutes of mindfulness or breathwork (e.g. 4-7-8 breathing) — it lowers stress and speeds up nervous-system recovery.",
+            "A rest day is part of training, not a break from it. Hip/shoulder mobility, light stretching, a walk outside. Try putting your phone down a little earlier tonight and spending 10 minutes in silence or meditating — recovering your mind matters as much as recovering your muscles."
+        ]
+        let variants = language == .en ? variantsEN : variantsCS
+        return variants[Int.random(in: 0..<variants.count, using: &rng)]
+    }
+
     // MARK: Veřejné API
 
     /// `seed`: nil = úplně nový (náhodný) výběr cviků, jako při prvním vygenerování
@@ -552,9 +602,7 @@ enum WorkoutGenerator {
                 blocks: [WorkoutBlock(
                     title: language == .en ? "Rest" : "Odpočinek", format: .rest, formatLabel: WorkoutFormat.rest.label(language),
                     durationMin: 20, timeCap: nil, scheme: language == .en ? "Mobility / recovery" : "Mobilita / regenerace", exercises: [],
-                    notes: language == .en
-                        ? "Light stretching, hip and shoulder mobility, a walk. No intense load."
-                        : "Lehké strečování, mobilita kyčlí a ramen, procházka. Žádná intenzivní zátěž."
+                    notes: restDayNotes(language, using: &rng)
                 )],
                 estKcal: 60, generatedAt: Date(), edited: false, rpe: nil, variantSeed: resolvedSeed
             )

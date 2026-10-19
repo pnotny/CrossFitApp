@@ -401,7 +401,14 @@ const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 // Modely Workers AI nevrací vždy `{ response: "...text..." }` — někdy je response
 // rovnou pole/objekt, jindy string obalený v markdownu apod. Tahle funkce z toho
 // za všech okolností zkusí vytáhnout JSON pole řetězců.
-function extractStringArray(result) {
+//
+// `expectedCount`: když se čeká jen JEDNA položka (typicky jednoblokový trénink —
+// Rest, Engine/monostrukturální den), malý model si velmi často neuvědomí, že má
+// jednoprvkové pole vůbec obalit hranatými závorkami, a vrátí jen holý/odcitovaný
+// text. Bez tohoto fallbacku by to při validaci (délka pole) vždy spadlo — proto
+// se u expectedCount === 1 zkusí z výstupu vytáhnout aspoň ten jeden text, než se
+// to vzdá úplně.
+function extractStringArray(result, expectedCount) {
   if (!result) return null;
   let raw = (typeof result === 'object' && 'response' in result) ? result.response : result;
   if (Array.isArray(raw) && raw.every((x) => typeof x === 'string')) return raw;
@@ -409,13 +416,26 @@ function extractStringArray(result) {
     try { raw = JSON.stringify(raw); } catch { raw = String(raw); }
   }
   const match = raw.match(/\[[\s\S]*\]/);
-  if (!match) return { __raw: raw };
-  try {
-    const parsed = JSON.parse(match[0]);
-    return Array.isArray(parsed) ? parsed : { __raw: raw };
-  } catch {
-    return { __raw: raw };
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // padá do fallbacku níž
+    }
   }
+  if (expectedCount === 1) {
+    let single = raw.trim().replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/, '').trim();
+    try {
+      const parsedString = JSON.parse(single);
+      if (typeof parsedString === 'string' && parsedString.trim()) return [parsedString.trim()];
+    } catch {
+      // nebyl to platný JSON string — zkusíme ho použít jako prostý text níž
+    }
+    single = single.replace(/^"+|"+$/g, '').trim();
+    if (single) return [single];
+  }
+  return { __raw: raw };
 }
 
 async function handleAIWorkoutNotes(request, env) {
@@ -467,7 +487,8 @@ async function handleAIWorkoutNotes(request, env) {
        `an experienced coach right before that block. Focus on pacing, strategy, breathing or mental focus; only ` +
        `mention a technical cue if it is unambiguously correct for that exact movement. Avoid generic clichés. ` +
        `Respond ONLY as a JSON array of strings, in exactly the same order and count as the blocks above — no ` +
-       `markdown, no explanation, just the array.`)
+       `markdown, no explanation, just the array.` +
+       (blocks.length === 1 ? ` There is only ONE block, so respond with a one-element array, like ["..."] — still an array, not a bare string.` : ''))
     : (`Cvičenec: úroveň ${body.level || 'neznámá'}, cíl ${body.goal || 'neznámý'}. ` +
        `Dnešní typ dne: ${body.dayTypeLabel || ''}. ${Array.isArray(body.recentRpe) && body.recentRpe.length ? `Poslední RPE (náročnost, 1–10): ${body.recentRpe.join(', ')}.` : ''}\n\n` +
        `Tréninkové bloky:\n${blockLines}\n\n` +
@@ -475,7 +496,8 @@ async function handleAIWorkoutNotes(request, env) {
        `zkušený trenér těsně před tím blokem. Zaměř se na tempo, strategii, dech nebo mentální nastavení; ` +
        `technický detail zmiň JEN pokud je u daného cviku jednoznačně správný. Vyhni se obecným klišé. Odpověz ` +
        `POUZE jako JSON pole řetězců, přesně ve stejném pořadí a počtu jako bloky výše — žádný markdown, žádné ` +
-       `vysvětlení, jen to pole.`);
+       `vysvětlení, jen to pole.` +
+       (blocks.length === 1 ? ` Je tu jen JEDEN blok, odpověz tedy jednoprvkovým polem, např. ["..."] — i tak pole, ne holý text.` : ''));
 
   try {
     const result = await env.AI.run(AI_MODEL, {
@@ -488,7 +510,7 @@ async function handleAIWorkoutNotes(request, env) {
       max_tokens: Math.min(1024, blocks.length * 120 + 150)
     });
 
-    const notes = extractStringArray(result);
+    const notes = extractStringArray(result, blocks.length);
     if (!Array.isArray(notes) || notes.length !== blocks.length || !notes.every((n) => typeof n === 'string')) {
       console.log('ai/workout-notes: validation failed', { expectedCount: blocks.length, result: notes });
       return json({ error: 'unexpected AI output' }, env, 502);
@@ -527,7 +549,7 @@ async function handleAITranslate(request, env) {
       ]
     });
 
-    const translations = extractStringArray(result);
+    const translations = extractStringArray(result, texts.length);
     if (!Array.isArray(translations) || translations.length !== texts.length || !translations.every((t) => typeof t === 'string')) {
       console.log('ai/translate: validation failed', { expectedCount: texts.length, texts, result: translations });
       return json({ error: 'unexpected AI output' }, env, 502);
