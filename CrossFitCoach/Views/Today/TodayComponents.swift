@@ -215,11 +215,26 @@ struct BlockCardView: View {
     let onSelectExercise: (Exercise) -> Void
     let onSwap: (Int) -> Void
 
-    /// AI poznámka pro tenhle blok, pokud se povedlo ji načíst — jinak nil
-    /// a karta ukáže statickou `block.notes` z generátoru.
+    /// AI poznámka pro tenhle blok, pokud se povedlo ji načíst.
     private var aiNote: String? {
         guard let notes = store.aiBlockNotes, blockIndex < notes.count else { return nil }
         return notes[blockIndex]
+    }
+
+    /// Pro jiný den než dnešek se AI poznámky vůbec nezkouší načítat (viz AppStore),
+    /// takže tam platí jen statická `block.notes` bez čekání.
+    private var isTodayBlock: Bool {
+        store.viewDate == DateUtils.todayString()
+    }
+
+    /// Co se má v kartě zobrazit: AI poznámka, pokud už dorazila; jinak statický
+    /// fallback z generátoru JEN pokud jde o jiný den, nebo se AI poznámky reálně
+    /// nepodařilo získat (offline/chyba) — dokud požadavek běží, karta raději nic
+    /// neukáže, než aby na chvíli bliklo "špatné" lokální znění a hned ho přepsala AI.
+    private var displayNotes: String? {
+        if let note = aiNote { return note }
+        guard !isTodayBlock || store.aiNotesUnavailable else { return nil }
+        return block.notes.isEmpty ? nil : block.notes
     }
 
     var body: some View {
@@ -252,8 +267,7 @@ struct BlockCardView: View {
                 }
             }
 
-            let displayNotes = aiNote ?? block.notes
-            if !displayNotes.isEmpty {
+            if let displayNotes {
                 HStack(alignment: .top, spacing: 6) {
                     if aiNote != nil {
                         Image(systemName: "sparkles")

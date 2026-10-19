@@ -22,11 +22,16 @@ final class AppStore: ObservableObject {
 
     /// AI koučovací poznámky pro aktuálně zobrazený (dnešní) trénink, jedna na blok,
     /// stejný počet a pořadí jako `currentWorkout?.blocks`. Celé pole nil = nenačtené/
-    /// selhalo, žádný blok ještě nemá AI text. Jednotlivý prvek nil = tenhle konkrétní
-    /// blok se (znovu) načítá nebo selhal — ostatní blok si mezitím drží svůj platný
-    /// AI text beze změny/blikání (viz `refreshAICoachNote(forBlockIndex:)`). UI v obou
-    /// nil případech ukazuje statické `block.notes` z generátoru.
+    /// ještě se načítá, žádný blok ještě nemá AI text. Jednotlivý prvek nil = tenhle
+    /// konkrétní blok se (znovu) načítá — ostatní blok si mezitím drží svůj platný AI
+    /// text beze změny/blikání (viz `refreshAICoachNote(forBlockIndex:)`).
     @Published var aiBlockNotes: [String?]?
+
+    /// True, jen když se AI poznámky reálně nepodařilo získat (offline/chyba serveru/AI
+    /// vrátila nečekaný výstup) — teprve pak UI ukáže statické `block.notes` z generátoru
+    /// jako fallback. Dokud požadavek běží, zůstává false a karta raději nic nezobrazí,
+    /// než aby na chvíli bliknula lokální text a hned ho přepsala AI poznámkou.
+    @Published var aiNotesUnavailable: Bool = false
 
     // MARK: Přihlášení
     @Published var authUser: AuthUser?
@@ -217,6 +222,7 @@ final class AppStore: ObservableObject {
     /// selže a nechá statické poznámky z generátoru, pokud není síť/AI dostupná.
     private func refreshAICoachNotes() {
         aiBlockNotes = nil
+        aiNotesUnavailable = false
         guard viewDate == DateUtils.todayString() else { return }
         Task { @MainActor in await loadAICoachNotes() }
     }
@@ -234,18 +240,28 @@ final class AppStore: ObservableObject {
             notes[index] = nil
             aiBlockNotes = notes
         }
+        aiNotesUnavailable = false
         Task { @MainActor in await loadAICoachNotes(onlyApplyingBlockIndex: index) }
     }
 
     private func loadAICoachNotes(onlyApplyingBlockIndex: Int? = nil) async {
         guard let token = KeychainStore.get(forKey: Self.authTokenKey), !authServerUrl.isEmpty,
-              let workout = currentWorkout, workout.date == viewDate else { return }
+              let workout = currentWorkout, workout.date == viewDate else {
+            aiNotesUnavailable = true
+            return
+        }
         let recentRpe = Array(history.compactMap { $0.rpe }.prefix(5))
         do {
             let notes = try await AICoachService.shared.fetchBlockNotes(
                 serverUrl: authServerUrl, token: token, workout: workout, profile: profile, recentRpe: recentRpe, language: language
             )
-            guard notes.count == workout.blocks.count, currentWorkout?.date == workout.date else { return }
+            // Mezitím se mohlo přepnout na jiný den/trénink — odpověď už nic neříká
+            // o aktuálně zobrazeném tréninku, tiše ji zahodíme (není to "nedostupnost").
+            guard currentWorkout?.date == workout.date else { return }
+            guard notes.count == workout.blocks.count else {
+                aiNotesUnavailable = true
+                return
+            }
             if let index = onlyApplyingBlockIndex, var existing = aiBlockNotes, index < existing.count, index < notes.count {
                 existing[index] = notes[index]
                 aiBlockNotes = existing
@@ -253,7 +269,9 @@ final class AppStore: ObservableObject {
                 aiBlockNotes = notes.map { $0 as String? }
             }
         } catch {
-            // Tiché selhání — appka beze změny ukazuje statické poznámky z generátoru.
+            // Skutečné selhání (offline/server/AI) — teprve teď UI smí spadnout
+            // na statické poznámky z generátoru, viz `aiNotesUnavailable`.
+            aiNotesUnavailable = true
         }
     }
 

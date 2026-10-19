@@ -436,26 +436,56 @@ async function handleAIWorkoutNotes(request, env) {
 
   const language = body.language === 'en' ? 'en' : 'cs';
 
+  // Systémová instrukce nese hlavní váhu tónu a "zábradlí" proti výmyslům —
+  // malý model (8B) si bez tohoto explicitního zákazu občas vymyslí technický
+  // detail, který u daného cviku nedává smysl (typicky: "dávej pozor na prsty
+  // na zemi" u shybu do stoje na rukou). Raději ať sáhne po obecné, ale platné
+  // koučovací radě (tempo, dech, rozkládání sil), než aby hádal techniku.
+  const systemPrompt = language === 'en'
+    ? 'You are an experienced, certified CrossFit coach (CF-L1/L2) briefing athletes on what to focus on in an ' +
+      'upcoming block of their session. Write the way a real coach talks: professional, confident, concrete, no ' +
+      'filler and no jokes. Never invent a technical detail about a movement that is factually wrong or makes no ' +
+      'sense for that exact exercise (for example: never mention finger or hand placement as a risk for a ' +
+      'handstand push-up — that is not a real technical concern). If you are not certain about a precise ' +
+      'technical cue for the exact movement, give solid general coaching advice instead — pacing, breathing, how ' +
+      'to break up reps, or mental focus for that block. Respond ONLY with a valid JSON array of strings, in the ' +
+      'correct order, with nothing else around it — no markdown, no explanation.'
+    : 'Jsi zkušený, certifikovaný CrossFit trenér (úroveň CF-L1/L2), který sportovcům krátce před blokem řekne, na ' +
+      'co se soustředit. Mluvíš jako opravdový trenér: profesionálně, s jistotou, konkrétně, bez omáčky a bez ' +
+      'vtípků. Nikdy si nevymýšlíš technický detail, který je u daného cviku fakticky špatně nebo nedává smysl ' +
+      '(například: u shybu do stoje na rukou/handstand push-up nikdy neříkej nic o pozici prstů nebo rukou na ' +
+      'zemi jako o riziku — to není reálný technický problém). Pokud si nejsi jistý přesnou technickou radou pro ' +
+      'konkrétní cvik, dej raději solidní obecnou koučovskou radu — k tempu, dechu, rozkládání sil v sérii nebo ' +
+      'mentálnímu nastavení pro daný blok. Odpověz VÝHRADNĚ validním JSON polem řetězců, ve správném pořadí, bez ' +
+      'jakéhokoliv dalšího textu kolem — žádný markdown, žádné vysvětlení.';
+
   const prompt = language === 'en'
-    ? (`You are an experienced CrossFit coach. Athlete: level ${body.level || 'unknown'}, goal ${body.goal || 'unknown'}. ` +
+    ? (`Athlete: level ${body.level || 'unknown'}, goal ${body.goal || 'unknown'}. ` +
        `Today's day type: ${body.dayTypeLabel || ''}. ${Array.isArray(body.recentRpe) && body.recentRpe.length ? `Recent RPE (difficulty, 1-10): ${body.recentRpe.join(', ')}.` : ''}\n\n` +
        `Workout blocks:\n${blockLines}\n\n` +
-       `For EVERY block write one short (max 2 sentences) coaching note in English — specific and practical, ` +
-       `about technique, pacing or strategy for that block. Respond ONLY as a JSON array of strings, in exactly ` +
-       `the same order and count as the blocks above — no markdown, no explanation, just the array.`)
-    : (`Jsi zkušený CrossFit trenér. Cvičenec: úroveň ${body.level || 'neznámá'}, cíl ${body.goal || 'neznámý'}. ` +
+       `For EVERY block write one short (max 2 sentences), professional coaching note in English — as if said by ` +
+       `an experienced coach right before that block. Focus on pacing, strategy, breathing or mental focus; only ` +
+       `mention a technical cue if it is unambiguously correct for that exact movement. Avoid generic clichés. ` +
+       `Respond ONLY as a JSON array of strings, in exactly the same order and count as the blocks above — no ` +
+       `markdown, no explanation, just the array.`)
+    : (`Cvičenec: úroveň ${body.level || 'neznámá'}, cíl ${body.goal || 'neznámý'}. ` +
        `Dnešní typ dne: ${body.dayTypeLabel || ''}. ${Array.isArray(body.recentRpe) && body.recentRpe.length ? `Poslední RPE (náročnost, 1–10): ${body.recentRpe.join(', ')}.` : ''}\n\n` +
        `Tréninkové bloky:\n${blockLines}\n\n` +
-       `Pro KAŽDÝ blok napiš jednu krátkou (max 2 věty) koučovací poznámku česky — konkrétní a praktickou, ` +
-       `k technice, tempu nebo strategii daného bloku. Odpověz POUZE jako JSON pole řetězců, přesně ve stejném ` +
-       `pořadí a počtu jako bloky výše — žádný markdown, žádné vysvětlení, jen to pole.`);
+       `Pro KAŽDÝ blok napiš jednu krátkou (max 2 věty), profesionální koučovací poznámku česky — jako by ji řekl ` +
+       `zkušený trenér těsně před tím blokem. Zaměř se na tempo, strategii, dech nebo mentální nastavení; ` +
+       `technický detail zmiň JEN pokud je u daného cviku jednoznačně správný. Vyhni se obecným klišé. Odpověz ` +
+       `POUZE jako JSON pole řetězců, přesně ve stejném pořadí a počtu jako bloky výše — žádný markdown, žádné ` +
+       `vysvětlení, jen to pole.`);
 
   try {
     const result = await env.AI.run(AI_MODEL, {
       messages: [
-        { role: 'system', content: 'Odpovídáš výhradně validním JSON polem řetězců, bez jakéhokoliv dalšího textu kolem.' },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
-      ]
+      ],
+      // Nižší teplota = méně "kreativní" výmysly, vhodnější pro věcné koučovací poznámky.
+      temperature: 0.4,
+      max_tokens: Math.min(1024, blocks.length * 120 + 150)
     });
 
     const notes = extractStringArray(result);
