@@ -15,11 +15,14 @@ struct ExerciseDetailView: View {
         _tier = State(initialValue: initialTier)
     }
 
-    /// Anglický překlad daného (českého) textu, pokud appka běží v angličtině
-    /// a překlad se podařilo načíst — jinak originál beze změny.
-    private func tr(_ cs: String) -> String {
+    /// Anglický překlad daného (českého) textu. Vrací nil, dokud appka běží
+    /// v angličtině a překlad ještě nemá (ani v lokálním stavu, ani v trvalé
+    /// cache) — v tom okamžiku UI ukáže placeholder místo blikajícího
+    /// "nejdřív česky, pak anglicky".
+    private func tr(_ cs: String) -> String? {
         guard store.language == .en else { return cs }
-        return translations[cs] ?? cs
+        if let t = translations[cs] { return t }
+        return store.cachedTranslation(cs)
     }
 
     private func loadTranslationsIfNeeded() async {
@@ -64,8 +67,8 @@ struct ExerciseDetailView: View {
                     detailSection(title: store.t("level_description"), text: tr(info.desc))
                     detailSection(title: store.t("next_level_criteria"), text: tr(info.criteria))
                     detailSection(title: store.t("muscles_worked"), text: tr(exercise.muscles.joined(separator: ", ")))
-                    detailListSection(title: store.t("coaching_cues"), items: exercise.cues.map(tr), symbol: "checkmark", color: .green)
-                    detailListSection(title: store.t("common_mistakes"), items: exercise.mistakes.map(tr), symbol: "xmark", color: .red)
+                    detailListSection(title: store.t("coaching_cues"), items: exercise.cues, translator: tr, symbol: "checkmark", color: .green)
+                    detailListSection(title: store.t("common_mistakes"), items: exercise.mistakes, translator: tr, symbol: "xmark", color: .red)
                 }
                 .padding(20)
             }
@@ -82,21 +85,25 @@ struct ExerciseDetailView: View {
     }
 
     @ViewBuilder
-    private func detailSection(title: String, text: String) -> some View {
+    private func detailSection(title: String, text: String?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .trackedUppercase(0.3)
                 .font(.system(size: 11, weight: .heavy))
                 .foregroundColor(DT.fgMuted)
-            Text(text)
-                .font(.system(size: 15))
-                .foregroundColor(DT.fg)
-                .fixedSize(horizontal: false, vertical: true)
+            if let text {
+                Text(text)
+                    .font(.system(size: 15))
+                    .foregroundColor(DT.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                translationPlaceholder(width: 220, height: 15)
+            }
         }
     }
 
     @ViewBuilder
-    private func detailListSection(title: String, items: [String], symbol: String, color: Color) -> some View {
+    private func detailListSection(title: String, items: [String], translator: (String) -> String?, symbol: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .trackedUppercase(0.3)
@@ -108,12 +115,25 @@ struct ExerciseDetailView: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(color)
                         .padding(.top, 3)
-                    Text(item)
-                        .font(.system(size: 14))
-                        .foregroundColor(DT.fg)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if let translated = translator(item) {
+                        Text(translated)
+                            .font(.system(size: 14))
+                            .foregroundColor(DT.fg)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        translationPlaceholder(width: 180, height: 14)
+                    }
                 }
             }
         }
+    }
+
+    /// Jednoduchý placeholder pruh, dokud čekáme na AI překlad — ať appka nejdřív
+    /// na okamžik neukáže český text, než ho vzápětí nahradí anglickým.
+    private func translationPlaceholder(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(DT.surface)
+            .frame(width: width, height: height)
+            .padding(.top, 2)
     }
 }

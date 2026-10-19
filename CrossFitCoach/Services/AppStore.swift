@@ -453,6 +453,13 @@ final class AppStore: ObservableObject {
         return texts.map { cache[$0] ?? $0 }
     }
 
+    /// Synchronní (bez síťového volání) nahlédnutí do trvalé cache — použij na
+    /// začátku zobrazení, ať se už jednou přeložený text neprobliskne nejdřív
+    /// česky, než doběhne network round-trip.
+    func cachedTranslation(_ cs: String) -> String? {
+        storage.getTranslationCache()[cs]
+    }
+
     // MARK: Jazyk
 
     func cycleLanguage() {
