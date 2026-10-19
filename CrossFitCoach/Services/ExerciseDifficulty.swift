@@ -24,11 +24,15 @@ enum ExerciseDifficulty {
         "squat-clean": .intermediate,
         "clean-and-jerk": .intermediate,
         "snatch": .intermediate,
+        "hang-snatch": .intermediate,
         "split-jerk": .intermediate,
         "snatch-balance": .intermediate,
         "muscle-snatch": .intermediate,
         "snatch-pull": .intermediate,
         "clean-pull": .intermediate,
+        // Cluster = squat-clean + thruster v každém opakování — aspoň tak
+        // náročné jako samotný squat-clean.
+        "cluster": .intermediate,
         "zercher-squat": .intermediate,
         "deficit-deadlift": .intermediate,
         "good-morning": .intermediate,

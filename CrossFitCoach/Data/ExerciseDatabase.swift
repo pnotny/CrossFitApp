@@ -88,6 +88,18 @@ enum ExerciseDatabase {
             mistakes: ["Pomalý propad", "Ztráta rovnováhy vzad", "Neúplná extenze kyčlí"]
         ),
         Exercise(
+            // Obecný "Clean" bez vynuceného stylu příjmu (power/squat) — v WODu
+            // obvykle myšleno "dostaň tyč na ramena jakkoliv platně", proto
+            // přístupnější a neomezené na úrovni (na rozdíl od squat-clean).
+            id: "clean", name: "Clean", category: .weightlifting, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.barbell], loadable: true,
+            oneRMKey: "clean", variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 61, F: 43), scaled: LoadStandardValues(M: 43, F: 29)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Hang power clean s lehkou zátěží, výběr techniky podle pohodlí.", criteria: "Zvládá dostat tyč na ramena jakoukoliv platnou technikou s lehkou zátěží."), intermediate: LevelInfo(desc: "Clean se střední zátěží, výběr power nebo squat příjmu.", criteria: "Konzistentně dostane tyč na ramena při 60–70 % 1RM libovolnou platnou technikou."), rx: LevelInfo(desc: "Clean s plnou RX zátěží libovolnou technikou.", criteria: "Spolehlivě zvládne těžký clean bez ohledu na zvolený styl příjmu.")),
+            cues: ["Tyč blízko těla po celou dráhu", "Trojitá extenze před propadem", "Vyber příjem (power/squat), který zvládneš bezpečně"],
+            mistakes: ["Předčasné tažení pažemi", "Tyč se odklání od těla", "Nucený squat příjem i bez síly/mobility na něj"]
+        ),
+        Exercise(
             id: "clean-and-jerk", name: "Clean & Jerk", category: .weightlifting, pattern: .olympic,
             muscles: ["celé tělo"], equipment: [.barbell, .rack], loadable: true,
             oneRMKey: "clean", variantMultiplier: 0.95,
@@ -122,6 +134,18 @@ enum ExerciseDatabase {
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Z visu nad koleny, velmi lehká zátěž.", criteria: "Zvládá hip hinge a extenzi ze širokého úchopu."), intermediate: LevelInfo(desc: "Hang power snatch se střední zátěží.", criteria: "Plynulý přechod hinge → extenze → zámek nad hlavou."), rx: LevelInfo(desc: "Hang power snatch s plnou zátěží.", criteria: "Stabilní a rychlý zámek i pod vyšší zátěží.")),
             cues: ["Vis těsně nad koleny", "Napnutá záda", "Aktivní zámek v ramenou"],
             mistakes: ["Nízký vis", "Ztráta napětí zad", "Pomalý propad pod tyč"]
+        ),
+        Exercise(
+            // Plný dřepový příjem ze závěsu (na rozdíl od hang-power-snatch) —
+            // multiplikátor stejný jako u power-snatch, protože dřepový příjem
+            // umožní vyšší zátěž, čímž vyrovná kratší dráhu tahu ze závěsu.
+            id: "hang-snatch", name: "Hang Snatch", category: .weightlifting, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.barbell], loadable: true,
+            oneRMKey: "snatch", variantMultiplier: 0.9,
+            standard: LoadStandard(rx: LoadStandardValues(M: 38, F: 25), scaled: LoadStandardValues(M: 25, F: 16)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Hang power snatch z visu nad koleny, velmi lehká zátěž.", criteria: "Zvládá hang power snatch čistě a opakovaně."), intermediate: LevelInfo(desc: "Hang snatch se střední zátěží, příjem do částečného dřepu.", criteria: "Bezpečný přechod do dřepu při příjmu se střední zátěží."), rx: LevelInfo(desc: "Hang snatch s plnou zátěží.", criteria: "Plynulý squat snatch z visu i u těžkých vah.")),
+            cues: ["Vis těsně nad koleny", "Rychlý propad pod tyč", "Aktivní zámek při příjmu do dřepu"],
+            mistakes: ["Příliš nízký vis", "Pomalý propad", "Ztráta rovnováhy vzad při příjmu"]
         ),
         Exercise(
             id: "shoulder-press", name: "Shoulder Press (strict)", category: .weightlifting, pattern: .push,
@@ -160,6 +184,17 @@ enum ExerciseDatabase {
             mistakes: ["Krátký/pomalý split", "Nestabilní zadní noha", "Tyč vpřed od těla"]
         ),
         Exercise(
+            // Obecný "Jerk" bez vynuceného stylu (push/split) — "dostaň tyč nad
+            // hlavu jakkoliv platně", proto přístupnější a neomezené na úrovni.
+            id: "jerk", name: "Jerk", category: .weightlifting, pattern: .push,
+            muscles: ["ramena", "nohy", "core"], equipment: [.barbell, .rack], loadable: true,
+            oneRMKey: "press", variantMultiplier: 1.3,
+            standard: LoadStandard(rx: LoadStandardValues(M: 70, F: 47), scaled: LoadStandardValues(M: 47, F: 31)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Push jerk s lehkou zátěží, výběr techniky podle pohodlí.", criteria: "Zvládá dostat tyč nad hlavu jakoukoliv platnou technikou s lehkou zátěží."), intermediate: LevelInfo(desc: "Jerk se střední zátěží, výběr push nebo split techniky.", criteria: "Konzistentně zvládne jerk při 60 %+ 1RM libovolnou platnou technikou."), rx: LevelInfo(desc: "Jerk s plnou RX zátěží libovolnou technikou.", criteria: "Spolehlivě zvládne těžký jerk bez ohledu na zvolený styl příjmu.")),
+            cues: ["Vertikální dip před hnacím pohybem", "Agresivní drive nahoru", "Vyber techniku (push/split), která tě dostane nejbezpečněji nad hlavu"],
+            mistakes: ["Šikmý dip", "Pomalý propad pod tyč", "Lpění na jedné technice i když druhá sedí lépe"]
+        ),
+        Exercise(
             id: "thruster", name: "Thruster", category: .weightlifting, pattern: .squat,
             muscles: ["nohy", "ramena", "core"], equipment: [.barbell], loadable: true,
             oneRMKey: "frontSquat", variantMultiplier: 0.6,
@@ -167,6 +202,18 @@ enum ExerciseDatabase {
             levels: ExerciseLevels(beginner: LevelInfo(desc: "Thruster s prázdnou tyčí nebo lehkou zátěží.", criteria: "Spojí front squat s tlakem bez pauzy nahoře."), intermediate: LevelInfo(desc: "Thruster se střední zátěží ve vyšším objemu.", criteria: "Udrží tempo v sérii 10+ opakování."), rx: LevelInfo(desc: "Thruster s plnou RX zátěží (např. Fran standard).", criteria: "Konzistentní rytmus a technika i pod únavou.")),
             cues: ["Plynulý přechod dřep → tlak", "Využij hybnost z nohou", "Lokty vysoko ve spodní pozici"],
             mistakes: ["Pauza mezi dřepem a tlakem", "Neúplná extenze nahoře", "Pokles loktů ve dřepu"]
+        ),
+        Exercise(
+            // Squat clean rovnou (bez odložení tyče) navazující thrusterem,
+            // opakovaně — nižší udržitelná zátěž než samostatný squat-clean,
+            // protože se dělá plný clean efekt v KAŽDÉM opakování.
+            id: "cluster", name: "Cluster", category: .weightlifting, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.barbell], loadable: true,
+            oneRMKey: "clean", variantMultiplier: 0.75,
+            standard: LoadStandard(rx: LoadStandardValues(M: 47, F: 31), scaled: LoadStandardValues(M: 31, F: 22)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "Squat clean + thruster s velmi lehkou zátěží, pomalé tempo.", criteria: "Zvládá spojit clean a thruster bez zátěže navíc."), intermediate: LevelInfo(desc: "Cluster se střední zátěží ve vyšším objemu.", criteria: "Zvládne 5+ nepřerušovaných opakování při střední zátěži."), rx: LevelInfo(desc: "Cluster s RX zátěží ve vysokém objemu.", criteria: "Udrží tempo 10+ opakování bez upuštění tyče.")),
+            cues: ["Plynulý přechod clean → thruster bez pauzy", "Trojitá extenze u cleanu", "Využij hybnost nahoru z dřepu do tlaku"],
+            mistakes: ["Pauza mezi clean a thrusterem", "Neúplná extenze u cleanu", "Ztráta rytmu pod únavou"]
         ),
         Exercise(
             id: "sumo-deadlift-high-pull", name: "Sumo Deadlift High Pull", category: .weightlifting, pattern: .hinge,
@@ -506,6 +553,45 @@ enum ExerciseDatabase {
             bypassesPatternExclusion: true
         ),
         Exercise(
+            id: "dumbbell-clean", name: "Dumbbell Clean", category: .strongman, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "DB clean s lehkou zátěží po jedné ruce, pomalé tempo.", criteria: "Zvládá hip hinge a stabilní rack pozici s lehkou zátěží."), intermediate: LevelInfo(desc: "DB clean se střední zátěží, střídání rukou.", criteria: "Zvládne 8+ nepřerušovaných opakování na stranu."), rx: LevelInfo(desc: "DB clean s RX zátěží ve vysokém objemu.", criteria: "Udrží techniku a tempo i pod únavou na obě strany.")),
+            cues: ["Stabilní rack pozice na rameni", "Extenze kyčlí táhne pohyb", "Střídej ruce pravidelně"],
+            mistakes: ["Nestabilní rack na rameni", "Tažení pouze paží", "Nerovnoměrné tempo mezi stranami"],
+            bypassesPatternExclusion: true
+        ),
+        Exercise(
+            id: "dumbbell-jerk", name: "Dumbbell Jerk", category: .strongman, pattern: .push,
+            muscles: ["ramena", "nohy", "core"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "DB jerk s lehkou zátěží po jedné ruce.", criteria: "Zvládá dip-drive a zámek nad hlavou s lehkou zátěží."), intermediate: LevelInfo(desc: "DB jerk se střední zátěží, střídání rukou.", criteria: "Zvládne 8+ nepřerušovaných opakování na stranu."), rx: LevelInfo(desc: "DB jerk s RX zátěží ve vysokém objemu.", criteria: "Udrží rychlý dip-drive i pod únavou na obě strany.")),
+            cues: ["Vertikální dip", "Rychlý drive nahoru", "Stabilní zámek nad hlavou"],
+            mistakes: ["Šikmý dip", "Pomalý propad pod činku", "Nestabilní zámek nahoře"]
+        ),
+        Exercise(
+            id: "dumbbell-hang-clean", name: "Dumbbell Hang Clean", category: .strongman, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "DB hang clean z visu nad koleny, lehká zátěž.", criteria: "Zvládá hip hinge z visu bez ztráty rovných zad."), intermediate: LevelInfo(desc: "DB hang clean se střední zátěží.", criteria: "Plynulý přechod hinge → extenze → rack pozice."), rx: LevelInfo(desc: "DB hang clean s RX zátěží ve vysokém objemu.", criteria: "Rychlá extenze a stabilní rack i pod únavou.")),
+            cues: ["Vis těsně nad koleny", "Rovná záda po celou dobu", "Aktivní příjem do rack pozice"],
+            mistakes: ["Příliš nízký vis", "Ztráta napětí v zádech", "Pomalý přechod do racku"],
+            bypassesPatternExclusion: true
+        ),
+        Exercise(
+            id: "dumbbell-hang-snatch", name: "Dumbbell Hang Snatch", category: .strongman, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "DB hang snatch z visu nad koleny, lehká zátěž.", criteria: "Zvládá hip hinge z visu a extenzi se zámkem nad hlavou."), intermediate: LevelInfo(desc: "DB hang snatch se střední zátěží.", criteria: "Plynulý přechod hinge → extenze → zámek nad hlavou."), rx: LevelInfo(desc: "DB hang snatch s RX zátěží ve vysokém objemu.", criteria: "Rychlý a stabilní zámek i pod únavou na obě strany.")),
+            cues: ["Vis těsně nad koleny", "Napnutá záda", "Rychlý zámek nad hlavou"],
+            mistakes: ["Nízký vis", "Ztráta napětí zad", "Pomalý zámek nad hlavou"],
+            bypassesPatternExclusion: true
+        ),
+        Exercise(
             id: "dumbbell-thruster", name: "Dumbbell Thruster", category: .strongman, pattern: .squat,
             muscles: ["nohy", "ramena", "core"], equipment: [.dumbbell], loadable: true,
             oneRMKey: nil, variantMultiplier: 1,
@@ -513,6 +599,16 @@ enum ExerciseDatabase {
             levels: ExerciseLevels(beginner: LevelInfo(desc: "DB thruster s lehkými činkami.", criteria: "Spojí front squat s tlakem bez pauzy nahoře."), intermediate: LevelInfo(desc: "DB thruster se střední zátěží ve vyšším objemu.", criteria: "Udrží tempo v sérii 10+ opakování."), rx: LevelInfo(desc: "DB thruster s RX zátěží ve vysokém objemu.", criteria: "Konzistentní rytmus i pod únavou.")),
             cues: ["Plynulý přechod dřep → tlak", "Lokty vpřed ve spodní pozici", "Využij hybnost z nohou"],
             mistakes: ["Pauza mezi dřepem a tlakem", "Neúplná extenze nahoře", "Ztráta rovnováhy vzad"]
+        ),
+        Exercise(
+            id: "dumbbell-cluster", name: "Dumbbell Cluster", category: .strongman, pattern: .olympic,
+            muscles: ["celé tělo"], equipment: [.dumbbell], loadable: true,
+            oneRMKey: nil, variantMultiplier: 1,
+            standard: LoadStandard(rx: LoadStandardValues(M: 22.5, F: 15), scaled: LoadStandardValues(M: 15, F: 10)),
+            levels: ExerciseLevels(beginner: LevelInfo(desc: "DB clean + thruster s lehkou zátěží, pomalé tempo.", criteria: "Zvládá spojit DB clean a thruster bez pauzy."), intermediate: LevelInfo(desc: "DB cluster se střední zátěží ve vyšším objemu.", criteria: "Zvládne 8+ nepřerušovaných opakování."), rx: LevelInfo(desc: "DB cluster s RX zátěží ve vysokém objemu.", criteria: "Udrží tempo 15+ opakování bez odkládání činek.")),
+            cues: ["Plynulý přechod clean → thruster", "Stabilní rack pozice mezi fázemi", "Využij hybnost nahoru z dřepu"],
+            mistakes: ["Pauza mezi clean a thrusterem", "Nestabilní rack", "Ztráta rytmu pod únavou"],
+            bypassesPatternExclusion: true
         ),
         Exercise(
             id: "wall-ball-shot", name: "Wall Ball Shot", category: .strongman, pattern: .squat,
